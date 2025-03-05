@@ -1,5 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.20)
-project(clearning C)
+project(LLDAW C)
 
 set(CMAKE_C_STANDARD 23)
 
@@ -29,12 +29,12 @@ endif ()
 
 # link all files from the src/* directory and their subdirectories
 file(GLOB_RECURSE SOURCES "src/*.c")
-add_executable(clearning ${SOURCES})
+add_executable(LLDAW ${SOURCES})
 
-target_link_libraries(clearning raylib)
+target_link_libraries(LLDAW raylib)
 
 if (APPLE)
-    target_link_libraries(clearning "-framework IOKit")
-    target_link_libraries(clearning "-framework Cocoa")
-    target_link_libraries(clearning "-framework OpenGL")
+    target_link_libraries(LLDAW "-framework IOKit")
+    target_link_libraries(LLDAW "-framework Cocoa")
+    target_link_libraries(LLDAW "-framework OpenGL")
 endif()
