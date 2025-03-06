@@ -1,9 +1,9 @@
 #include <raylib.h>
 #include <rlgl.h>
-#include <printf.h>
 #include "custom.h"
 #include "ui_settings.h"
 #include "kiss_fft.h"
+#include <math.h>
 #include "../../audio/audio_state.h"
 
 void WaveformDraw(const float* buffer, int bufferSize, Color color, float width, float height, float x, float y){
@@ -28,11 +28,6 @@ void WaveformDraw(const float* buffer, int bufferSize, Color color, float width,
 
     rlEnd();
 }
-
-#include <raylib.h>
-#include <rlgl.h>
-#include <kiss_fft.h>
-#include <math.h>
 
 // Function to compute the FFT and draw the frequency spectrum
 void SpectrumDraw(const float* buffer, int bufferSize, Color color, float width, float height, float x, float y, float sampleRate, int quality) {

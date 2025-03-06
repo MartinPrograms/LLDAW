@@ -3,7 +3,7 @@
 
 #include <clay.h>
 
-int CustomComponentIndex;
+extern int CustomComponentIndex;
 void WaveformVisualizer(const float* buffer, int bufferSize);
 void SpectrumVisualizer(const float* buffer, int bufferSize);
 

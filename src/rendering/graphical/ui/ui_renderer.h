@@ -1,15 +1,16 @@
+#pragma once
 #ifndef UI_RENDERER_H
 #define UI_RENDERER_H
 #include <clay.h>
 #include <raylib.h>
 
-Font* fonts;
-int fontCount;
+extern Font* fonts;
+extern int fontCount;
 
-Clay_Arena arena;
+extern Clay_Arena arena;
 
 // Function pointer to a user set function that calls all the calls to clay
-void (*UIRender)(void);
+extern void (*UIRender)(void);
 
 Clay_RenderCommandArray DrawUI(float sizeX, float sizeY, float mouseX, float mouseY, bool clickM1, float scrollDeltaX, float scrollDeltaY, float deltaTime); // This function draws the main ui
 void RaylibRenderUI(Clay_RenderCommandArray renderCommands); // This function renders the ui

@@ -25,8 +25,8 @@ typedef struct {
     GeneratorState generatorState;
 } AudioState;
 
-AudioState audio_state;
-AudioStream stream;
-thrd_t audio_thread;
+extern AudioState audio_state;
+extern AudioStream stream;
+extern thrd_t audio_thread;
 
 #endif

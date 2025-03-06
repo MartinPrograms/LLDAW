@@ -1,8 +1,8 @@
 ﻿#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <tinycthread.h> // C11 threads but cross-platform (instead of using thread, pthread, etc.)
 #include <raylib.h>
+#include <tinycthread.h> // C11 threads but cross-platform (instead of using thread, pthread, etc.)
 #include <rlgl.h>
 
 #define CLAY_IMPLEMENTATION
@@ -28,24 +28,29 @@ void CalculateBuffer(float *buffer, int frames) {
     }
 }
 
+float* as_buffer = NULL;
+float* as_bigFifoBuffer = NULL;
+float* as_smallFifoBuffer = NULL;
+
 int AudioThread(void* arg) {
     AudioState* state = (AudioState*)arg;
-    float buffer[BUFFER_SIZE];
-    audio_state.buffer = buffer;
-    float fifoBuffer[BIG_FIFO_BUFFER_SIZE];
-    audio_state.bigFifoBuffer = fifoBuffer;
-    float smallFifoBuffer[SMALL_FIFO_BUFFER_SIZE];
-    audio_state.smallFifoBuffer = smallFifoBuffer;
+    // Horrible code, but thats the fault of mr microsoft
+    as_buffer = malloc(BUFFER_SIZE * sizeof(float));
+    audio_state.buffer = as_buffer;
+    as_bigFifoBuffer = malloc(BUFFER_SIZE * sizeof(float));
+    audio_state.bigFifoBuffer = as_bigFifoBuffer;
+    as_smallFifoBuffer = malloc(BUFFER_SIZE * sizeof(float));
+    audio_state.smallFifoBuffer = as_smallFifoBuffer;
 
     while (state->running) {
         if (state->reset) {
-            memset(buffer, 0, sizeof(buffer));
+            memset(as_buffer, 0, sizeof(float) * BUFFER_SIZE);
             state->reset = false;
 
-            memset(fifoBuffer, 0, sizeof(fifoBuffer));
+            memset(as_bigFifoBuffer, 0, sizeof(float) * BIG_FIFO_BUFFER_SIZE);
             state->bigFifoBufferIndex = 0;
 
-            memset(smallFifoBuffer, 0, sizeof(smallFifoBuffer));
+            memset(as_smallFifoBuffer, 0, sizeof(float) * SMALL_FIFO_BUFFER_SIZE);
             state->smallFifoBufferIndex = 0;
 
             continue;
@@ -58,8 +63,8 @@ int AudioThread(void* arg) {
         mtx_lock(&state->mutex);
 
         if (IsAudioStreamProcessed(stream)) {
-            CalculateBuffer(buffer, BUFFER_SIZE);
-            UpdateAudioStream(stream, buffer, BUFFER_SIZE);
+            CalculateBuffer(as_buffer, BUFFER_SIZE);
+            UpdateAudioStream(stream, as_buffer, BUFFER_SIZE);
         }
 
         mtx_unlock(&state->mutex);

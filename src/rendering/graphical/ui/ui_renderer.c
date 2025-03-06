@@ -1,8 +1,14 @@
 #include <stdlib.h>
-#include <printf.h>
+#include <stdio.h>
 #include <string.h>
 #include "custom.h"
 #include "ui_renderer.h"
+
+Font* fonts = NULL;
+int fontCount = 0;
+Clay_Arena arena = {0};
+
+void (*UIRender)(void) = NULL;
 
 void HandleClayErrors(Clay_ErrorData errorData) {
     // See the Clay_ErrorData struct for more information

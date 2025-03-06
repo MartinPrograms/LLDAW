@@ -12,8 +12,8 @@
 #include "./basic/string.h" // Unused yes, but it's included to make it available in other files
 #include "./basic/arena.h" // This however, is used. As the Init function creates an arena
 #include "../rendering/audio/audio_state.h" // The audio state is included to make it available in other files
-ARENA* default_arena;
-ARENA* frame_arena;
+extern ARENA* default_arena;
+extern ARENA* frame_arena;
 
 static inline void Init(size_t capacity) {
     // If it's macOS/linux we need to change the console mode to allow reading a single key

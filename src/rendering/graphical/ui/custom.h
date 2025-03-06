@@ -1,7 +1,6 @@
 #ifndef CUSTOM_H
 #define CUSTOM_H
 
-#include <clay.h>
 #include <raylib.h>
 
 typedef enum {

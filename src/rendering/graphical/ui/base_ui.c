@@ -1,10 +1,10 @@
-#include "base_ui.h"
 #include "components.h"
-#include <printf.h>
+#include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <stdio.h>
 #include <raylib.h>
+#include "base_ui.h"
 
 int buttonCount = 0;
 
