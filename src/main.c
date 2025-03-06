@@ -1,7 +1,7 @@
 ﻿#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <threads.h>  // C11 threads
+#include "../libs/tinycthread/tinycthread.h" // C11 threads but cross-platform (instead of using thread, pthread, etc.)
 
 #include "helpers/include.h" // the standard include file with a lot of basic functions
 

@@ -1,3 +1,3 @@
 #!/bin/bash
 
-cmake --build ./cmake-build-debug-linux --target clearning -j 14
+cmake --build ./cmake-build-debug-linux --target LLDAW -j 14
