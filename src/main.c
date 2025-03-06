@@ -22,6 +22,7 @@ typedef struct {
     mtx_t mutex;
     bool running;
     float* buffer;
+    bool paused;
 } AudioState;
 
 AudioState audio_state = {0};
@@ -83,6 +84,9 @@ int AudioThread(void* arg) {
     audio_state.buffer = buffer;
 
     while (state->running) {
+        if (state->paused) {
+            continue;
+        }
         mtx_lock(&state->mutex);
 
         if (IsAudioStreamProcessed(stream)) {
@@ -95,10 +99,28 @@ int AudioThread(void* arg) {
     return 0;
 }
 
+void play() {
+    mtx_lock(&audio_state.mutex);
+    audio_state.paused = false;
+    mtx_unlock(&audio_state.mutex);
+}
+
+void pauseCallback() {
+    mtx_lock(&audio_state.mutex);
+    audio_state.paused = true;
+    mtx_unlock(&audio_state.mutex);
+}
+
+void stop() {
+    mtx_lock(&audio_state.mutex);
+    audio_state.paused = true; // this only differs because thisll later reset the buffers
+    mtx_unlock(&audio_state.mutex);
+}
+
 int main(void) {
     Init(1024 * 1024 * 4); // Initialize the Helper Library with a 4MB arena
     InitWindow(1920, 1080, "Hello, World!");
-    SetTargetFPS(250);
+    SetTargetFPS(240);
 
     InitUI(1920, 1080);
     SetUIRenderFunction(RenderMainUI);
@@ -111,7 +133,12 @@ int main(void) {
     PlayAudioStream(stream);
 
     mtx_init(&audio_state.mutex, mtx_plain);
-    audio_state.running = false; // TODO: enable this again lol
+    audio_state.running = true;
+    audio_state.paused = true;
+
+    PlayCallback = play;
+    PauseCallback = pauseCallback;
+    StopCallback = stop;
 
     thrd_create(&audio_thread, AudioThread, &audio_state);
 
@@ -128,6 +155,8 @@ int main(void) {
         RaylibRenderUI(commands);
 
         EndDrawing();
+
+        arena_reset(frame_arena); // Reset the frame arena
     }
 
     printf("Closing...\n");

@@ -25,4 +25,6 @@ void *arena_alloc(ARENA *arena, size_t size);
 /// Resets the arena by setting the offset to 0.
 void arena_reset(ARENA *arena);
 
+float percentage_arena_used(ARENA *arena);
+
 #endif // ARENA_H

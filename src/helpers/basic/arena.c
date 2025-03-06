@@ -41,3 +41,7 @@ void arena_reset(ARENA *arena) {
         arena->offset = 0;
     }
 }
+
+float percentage_arena_used(ARENA *arena) {
+    return (float)arena->offset / (float)arena->capacity;
+}

@@ -8,9 +8,11 @@
 #endif
 
 #include "./basic/version.h" // The version file is included to make the version available in other files
+#include "./basic/state.h" // State file, includes some UI callbacks, and information on the current state
 #include "./basic/string.h" // Unused yes, but it's included to make it available in other files
 #include "./basic/arena.h" // This however, is used. As the Init function creates an arena
 ARENA* default_arena;
+ARENA* frame_arena;
 
 static inline void Init(size_t capacity) {
     // If it's macOS/linux we need to change the console mode to allow reading a single key
@@ -34,11 +36,13 @@ static inline void Init(size_t capacity) {
     #endif
 
     default_arena = arena_create(capacity);
+    frame_arena = arena_create(capacity); // This one is reset every frame (think text rendering)
 }
 
 static inline void Destroy() {
     // First destroy the default arena
     arena_destroy(default_arena);
+    arena_destroy(frame_arena);
 
     // Now if it's macOS/linux we need to reset the console mode
     #if defined(__APPLE__) || defined(__linux__)

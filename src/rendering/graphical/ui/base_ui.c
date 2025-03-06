@@ -1,6 +1,9 @@
 #include "base_ui.h"
 #include <printf.h>
 #include <string.h>
+#include <math.h>
+#include <stdio.h>
+#include <raylib.h>
 
 int buttonCount = 0;
 
@@ -13,15 +16,16 @@ void LeftPanel(){
              .id = CLAY_ID("LeftPanel"),
              .layout = {
                 .sizing = {CLAY_SIZING_PERCENT(0.16), CLAY_SIZING_GROW()},
-                .padding = CLAY_PADDING_ALL(4),
-                .childGap = 4,
+                .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                .childGap = STANDARD_GAP,
                 .layoutDirection = CLAY_TOP_TO_BOTTOM
         },
-             .backgroundColor = COLOR_SCHEME_BACKGROUND_SECONDARY
+             .backgroundColor = COLOR_SCHEME_BACKGROUND_SECONDARY,
+             .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
          }) {
         CLAY({
                  .id = CLAY_ID("LeftPanelText"), .layout = {.sizing = {CLAY_SIZING_GROW(),
-                                                                       CLAY_SIZING_GROW()}, .padding = CLAY_PADDING_ALL(0)},
+                                                                       CLAY_SIZING_GROW()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING)},
              }) {
             CLAY_TEXT(GetString("Left Panel"), CLAY_TEXT_CONFIG(
                     {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
@@ -34,15 +38,16 @@ void MiddlePanel(){
              .id = CLAY_ID("MiddlePanel"),
              .layout = {
                 .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_GROW()},
-                .padding = CLAY_PADDING_ALL(4),
-                .childGap = 4,
+                .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                .childGap = STANDARD_GAP,
                 .layoutDirection = CLAY_TOP_TO_BOTTOM
         },
-             .backgroundColor = COLOR_SCHEME_BACKGROUND
+             .backgroundColor = COLOR_SCHEME_BACKGROUND_TERTIARY,
+             .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
          }) {
         CLAY({
                  .id = CLAY_ID("MiddlePanelText"), .layout = {.sizing = {CLAY_SIZING_GROW(),
-                                                                         CLAY_SIZING_FIT()}, .padding = CLAY_PADDING_ALL(0)},
+                                                                         CLAY_SIZING_FIT()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING)},
              }) {
             CLAY_TEXT(GetString("Middle Panel"), CLAY_TEXT_CONFIG(
                     {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
@@ -55,15 +60,17 @@ void RightPanel(){
              .id = CLAY_ID("RightPanel"),
              .layout = {
                 .sizing = {CLAY_SIZING_PERCENT(0.15), CLAY_SIZING_GROW()},
-                .padding = CLAY_PADDING_ALL(4),
-                .childGap = 4,
+                .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                .childGap = STANDARD_GAP,
                 .layoutDirection = CLAY_TOP_TO_BOTTOM
         },
-             .backgroundColor = COLOR_SCHEME_BACKGROUND_SECONDARY
+             .backgroundColor = COLOR_SCHEME_BACKGROUND_SECONDARY,
+             .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
+
          }) {
         CLAY({
                  .id = CLAY_ID("RightPanelText"), .layout = {.sizing = {CLAY_SIZING_GROW(),
-                                                                        CLAY_SIZING_FIT()}, .padding = CLAY_PADDING_ALL(0)},
+                                                                        CLAY_SIZING_FIT()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING)},
              }) {
             CLAY_TEXT(GetString("Right Panel"), CLAY_TEXT_CONFIG(
                     {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
@@ -76,36 +83,90 @@ void BaseContainer(){
              .id = CLAY_ID("BaseContainer"),
              .layout = {
                 .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_GROW()},
-                .padding = CLAY_PADDING_ALL(0),
-                .childGap = 4,
+                .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                .childGap = STANDARD_GAP,
                 .layoutDirection = CLAY_LEFT_TO_RIGHT
         },
-             .backgroundColor = COLOR_SCHEME_BACKGROUND
+             .backgroundColor = COLOR_SCHEME_BACKGROUND,
+             .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
+
          }) {
         LeftPanel();
         MiddlePanel();
         RightPanel();
     }
 }
-void TopBar(){
+
+STRING GetTopbarStats() {
+    STRING stats = StringCreate("Memory: ", frame_arena);
+    float percentageUsed =
+            percentage_arena_used(frame_arena) * 100; // convert to percentage, and then to string
+    char *percentageString = malloc(10);
+    snprintf(percentageString, 10, "%f", percentageUsed);
+    stats = StringConcat(&stats, percentageString);
+    stats = StringConcat(&stats, "%");
+    stats = StringConcat(&stats, "\n");
+    stats = StringConcat(&stats, "FPS: ");
+    float frametime = 1.0f / GetFrameTime();
+    char *fpsString = malloc(10);
+    snprintf(fpsString, 10, "%f", frametime);
+    stats = StringConcat(&stats, fpsString);
+    return stats;
+}
+
+void TopBar() {
     CLAY({
              .id = CLAY_ID("TopBar"),
              .layout = {
                 .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_FIT()},
-                .padding = CLAY_PADDING_ALL(8),
-                .childGap = 4,
+                .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                .childGap = STANDARD_GAP,
                 .childAlignment = {CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER},
                 .layoutDirection = CLAY_LEFT_TO_RIGHT
         },
-             .backgroundColor = COLOR_SCHEME_BACKGROUND_SECONDARY
+             .backgroundColor = COLOR_SCHEME_BACKGROUND_SECONDARY,
+             .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
+
          }) {
 
-        STRING title = StringCreate("LLDAW", default_arena);
+        STRING title = StringCreate("LLDAW", frame_arena);
         title = StringConcat(&title, " - ");
         title = StringConcat(&title, VERSION);
 
-        CLAY_TEXT(GetString(title.data), CLAY_TEXT_CONFIG(
-                {.textColor = COLOR_SCHEME_TEXT, .fontSize = 32, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
+        CLAY({
+                 .id = CLAY_ID("TopBarText"), .layout = {.sizing = {CLAY_SIZING_FIT(),
+                                                                    CLAY_SIZING_GROW()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING)},
+             }) {
+            CLAY_TEXT(GetString(title.data), CLAY_TEXT_CONFIG(
+                    {.textColor = COLOR_SCHEME_TEXT, .fontSize = 32, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
+        }
+
+        CLAY({
+                 .id = CLAY_ID("PlaybackControls"), // think play, pause, stop
+                 .layout = {
+                    .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_GROW()},
+                    .padding = CLAY_PADDING_ALL(0),
+                    .childGap = STANDARD_GAP,
+                    .layoutDirection = CLAY_LEFT_TO_RIGHT,
+                    .childAlignment = {CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER}
+            }
+             }) {
+            CreateButton("Play", PlayCallback);
+            CreateButton("Pause", PauseCallback);
+            CreateButton("Stop", StopCallback);
+        }
+
+        CLAY({
+                 .id = CLAY_ID("TopBarStats"), .layout = {.sizing = {CLAY_SIZING_FIT(),
+                                                                     CLAY_SIZING_GROW()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                    .layoutDirection = CLAY_TOP_TO_BOTTOM},
+             }) {
+
+            STRING stats = GetTopbarStats();
+
+            CLAY_TEXT(GetString(stats.data), CLAY_TEXT_CONFIG(
+                    {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
+        }
     }
 }
 
@@ -114,11 +175,13 @@ void BottomBar(){
              .id = CLAY_ID("BottomBar"),
              .layout = {
                 .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_PERCENT(0.15)},
-                .padding = CLAY_PADDING_ALL(4),
-                .childGap = 4,
+                .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                .childGap = STANDARD_GAP,
                 .layoutDirection = CLAY_LEFT_TO_RIGHT
         },
-             .backgroundColor = COLOR_SCHEME_BACKGROUND_SECONDARY
+             .backgroundColor = COLOR_SCHEME_BACKGROUND_SECONDARY,
+             .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
+
          }) {
         CreateButton("Test", testing);
     }
@@ -128,11 +191,12 @@ void Root(){
              .id = CLAY_ID("RootContainer"),
              .layout = {
                 .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_GROW()},
-                .padding = CLAY_PADDING_ALL(8),
-                .childGap = 8,
+                .padding = CLAY_PADDING_ALL(STANDARD_PADDING * 2),
+                .childGap = STANDARD_GAP * 2,
                 .layoutDirection = CLAY_TOP_TO_BOTTOM
         },
-             .backgroundColor = COLOR_SCHEME_BACKGROUND
+             .backgroundColor = COLOR_SCHEME_BACKGROUND,
+             .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
          }) {
         TopBar();
         BaseContainer();
@@ -166,14 +230,15 @@ void CreateButton(const char* text, void (*callback)()) {
     Clay_ElementId id = CLAY_IDI("BUTTON", buttonCount);
     CLAY({
              .id = (id), .layout = {.sizing = {CLAY_SIZING_FIT(),
-                                               CLAY_SIZING_FIT()}, .padding = CLAY_PADDING_ALL(
-                8)}, .backgroundColor = COLOR_SCHEME_BUTTON
+                                               CLAY_SIZING_FIT()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING)},
+             .backgroundColor = COLOR_SCHEME_BUTTON,
+             .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
          }) {
         Clay_OnHover(HandleButtonInteraction, (intptr_t) callback);
         CLAY({
                  .id = CLAY_ID_LOCAL("ButtonText"), .layout = {.sizing = {CLAY_SIZING_GROW(),
                                                                           CLAY_SIZING_GROW()},
-                    .padding = CLAY_PADDING_ALL(0)},
+                    .padding = CLAY_PADDING_ALL(STANDARD_PADDING)},
              }) {
             CLAY_TEXT(GetString(text), CLAY_TEXT_CONFIG(
                     {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
