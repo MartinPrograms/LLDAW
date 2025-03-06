@@ -13,33 +13,18 @@
 #include "rendering/graphical/ui/ui_renderer.h"
 #include "rendering/graphical/ui/base_ui.h"
 
-float phase1 = 0.0f;
-float phase2 = 0.0f;
-
-float frequency1 = 440.0f;
-float frequency2 = 880.0f;
-
-void GenerateSineWave(float *buffer, int frames) {
-    float phaseStep1 = 2 * PI * frequency1 / SAMPLE_RATE;
-    float phaseStep2 = 2 * PI * frequency2 / SAMPLE_RATE;
-
+void CalculateBuffer(float *buffer, int frames) {
     for (int i = 0; i < frames; i++) {
-        float sample1 = sinf(phase1);
-        float sample2 = 2.0f * fabsf(2.0f * (phase2 / (2 * PI) - floorf(phase2 / (2 * PI) + 0.5f))) - 1.0f;
-
-        buffer[i] = (sample1 + sample2) * 0.5f;  // Mix the two waves and reduce volume
+        for (int j = 0; j < audio_state.generatorState.generatorCount; j++) {
+            Generator generator = audio_state.generatorState.generators[j];
+            buffer[i] += generator.generate(generator.frequency, generator.phase, generator.amplitude, generator.waveform);
+        }
 
         audio_state.bigFifoBuffer[audio_state.bigFifoBufferIndex] = buffer[i];
         audio_state.bigFifoBufferIndex = (audio_state.bigFifoBufferIndex + 1) % BIG_FIFO_BUFFER_SIZE;
 
         audio_state.smallFifoBuffer[audio_state.smallFifoBufferIndex] = buffer[i];
         audio_state.smallFifoBufferIndex = (audio_state.smallFifoBufferIndex + 1) % SMALL_FIFO_BUFFER_SIZE;
-
-        phase1 += phaseStep1;
-        phase2 += phaseStep2;
-
-        if (phase1 > 2 * PI) phase1 -= 2 * PI;
-        if (phase2 > 2 * PI) phase2 -= 2 * PI;
     }
 }
 
@@ -73,7 +58,7 @@ int AudioThread(void* arg) {
         mtx_lock(&state->mutex);
 
         if (IsAudioStreamProcessed(stream)) {
-            GenerateSineWave(buffer, BUFFER_SIZE);
+            CalculateBuffer(buffer, BUFFER_SIZE);
             UpdateAudioStream(stream, buffer, BUFFER_SIZE);
         }
 
@@ -97,8 +82,6 @@ void pauseCallback() {
 void stop() {
     mtx_lock(&audio_state.mutex);
     audio_state.paused = true;
-    audio_state.phase1 = 0.0f;
-    audio_state.phase2 = 0.0f;
     audio_state.reset = true;
     mtx_unlock(&audio_state.mutex);
 }
@@ -116,11 +99,14 @@ int main(void) {
     PlayAudioStream(stream);
 
     audio_state = (AudioState) {
-        .phase1 = 0.0f,
-        .phase2 = 0.0f,
         .running = true,
-        .paused = true
+        .paused = true,
+        .reset = false,
+        .generatorState = generator_init(10) // 10 generators max
     };
+
+    generator_add(&audio_state.generatorState,
+                  (Generator) {.waveform = SINE, .frequency = 440, .amplitude = 0.5f, .generate = GenerateWaveform});
 
     mtx_init(&audio_state.mutex, mtx_plain);
     audio_state.running = true;
@@ -136,7 +122,14 @@ int main(void) {
     SetUIRenderFunction(RenderMainUI);
 
     while (!WindowShouldClose()) {
-        Clay_RenderCommandArray commands = DrawUI(GetScreenWidth(), GetScreenHeight(), GetMouseX(), GetMouseY(), IsMouseButtonDown(MOUSE_LEFT_BUTTON), GetMouseWheelMoveV().x, GetMouseWheelMoveV().y, GetFrameTime());
+        Clay_RenderCommandArray commands = DrawUI(GetScreenWidth(),
+                                                  GetScreenHeight(),
+                                                  GetMouseX(),
+                                                  GetMouseY(),
+                                                  IsMouseButtonDown(MOUSE_LEFT_BUTTON),
+                                                  GetMouseWheelMoveV().x,
+                                                  GetMouseWheelMoveV().y,
+                                                  GetFrameTime());
 
         BeginDrawing();
         ClearBackground(BLACK);
@@ -145,17 +138,12 @@ int main(void) {
             Clay_SetDebugModeEnabled(true);
         }
 
-        float freqStep = 100.0f * GetFrameTime();
-        if (IsKeyDown(KEY_DOWN))
-        {
-            frequency1 -= freqStep;
-            frequency2 -= freqStep;
-        }
-
-        if (IsKeyDown(KEY_UP))
-        {
-            frequency1 += freqStep;
-            frequency2 += freqStep;
+        if (IsKeyPressed(KEY_SPACE)) {
+            if (audio_state.paused) {
+                play();
+            } else {
+                stop();
+            }
         }
 
         RaylibRenderUI(commands);

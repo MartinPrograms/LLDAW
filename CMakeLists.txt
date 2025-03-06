@@ -34,6 +34,9 @@ target_include_directories(tinycthread PUBLIC ./libs/tinycthread)
 add_library(clay INTERFACE)
 target_include_directories(clay INTERFACE ./libs/clay)
 
+add_library(kiss_fft STATIC ./libs/kiss_fft/kiss_fft.c)
+target_include_directories(kiss_fft PUBLIC ./libs/kiss_fft)
+
 # link all files from the src/* directory and their subdirectories
 file(GLOB_RECURSE SOURCES "src/*.c")
 add_executable(LLDAW ${SOURCES})
@@ -41,6 +44,7 @@ add_executable(LLDAW ${SOURCES})
 target_link_libraries(LLDAW raylib)
 target_link_libraries(LLDAW tinycthread)
 target_link_libraries(LLDAW clay)
+target_link_libraries(LLDAW kiss_fft)
 
 if (APPLE)
     target_link_libraries(LLDAW "-framework IOKit")

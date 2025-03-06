@@ -4,6 +4,7 @@
 
 #include <raylib.h>
 #include <tinycthread.h>
+#include "generator.h"
 
 #define SAMPLE_RATE 44100
 #define BUFFER_SIZE 1024
@@ -12,8 +13,6 @@
 #define AUDIO_THREAD_PRIORITY 0 // 0 is considered default priority, if clicking occurs try setting to 1 which raises it to critical
 
 typedef struct {
-    float phase1;
-    float phase2;
     mtx_t mutex;
     bool running;
     float* buffer;
@@ -23,6 +22,7 @@ typedef struct {
     int smallFifoBufferIndex;
     bool paused;
     bool reset;
+    GeneratorState generatorState;
 } AudioState;
 
 AudioState audio_state;

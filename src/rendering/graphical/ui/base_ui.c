@@ -208,13 +208,48 @@ void BottomBar(){
                 .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_PERCENT(0.15)},
                 .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
                 .childGap = STANDARD_GAP,
-                .layoutDirection = CLAY_LEFT_TO_RIGHT
+                .layoutDirection = CLAY_LEFT_TO_RIGHT,
         },
              .backgroundColor = COLOR_SCHEME_BACKGROUND_SECONDARY,
-             .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
-
+             .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS),
+             .scroll = {true, false} // horizontal scroll
          }) {
-        CreateButton("Test", testing);
+
+        for(int i = 0; i < audio_state.generatorState.generatorCount; i++){
+            Generator generator = audio_state.generatorState.generators[i];
+            CLAY({
+                .id = CLAY_IDI("Generator", i),
+                .layout = {
+                    .sizing = {CLAY_SIZING_FIXED(400), CLAY_SIZING_GROW()},
+                    .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                    .childGap = STANDARD_GAP,
+                    .layoutDirection = CLAY_TOP_TO_BOTTOM
+                },
+                .backgroundColor = COLOR_SCHEME_BACKGROUND_TERTIARY,
+            }){
+                // Generator name, frequency, amplitude, waveform, with buttons to change them
+                CLAY({
+                    .id = CLAY_ID_LOCAL("GeneratorName"),
+                    .layout = {
+                        .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_FIT()},
+                        .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                        .layoutDirection = CLAY_TOP_TO_BOTTOM,
+                        .childAlignment = {CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_TOP}
+                    }
+                }){
+                    STRING generatorName = StringCreate("Generator ", frame_arena);
+                    char *generatorIndex = malloc(10);
+                    snprintf(generatorIndex, 10, "%d", i);
+                    generatorName = StringConcat(&generatorName, generatorIndex);
+                    CLAY_TEXT(GetString(generatorName.data), CLAY_TEXT_CONFIG(
+                            {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
+
+                    STRING generatorType = StringCreate(generator.waveform == SINE ? "Sine" : generator.waveform == SQUARE ? "Square" : generator.waveform == SAWTOOTH ? "Sawtooth" : generator.waveform == TRIANGLE ? "Triangle" : "Noise", frame_arena);
+                    CLAY_TEXT(GetString(generatorType.data), CLAY_TEXT_CONFIG(
+                            {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
+                }
+            }
+        }
     }
 }
 void Root(){
