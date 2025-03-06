@@ -1,15 +1,19 @@
 ﻿#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "../libs/tinycthread/tinycthread.h" // C11 threads but cross-platform (instead of using thread, pthread, etc.)
+#include <tinycthread.h> // C11 threads but cross-platform (instead of using thread, pthread, etc.)
+#include <raylib.h>
+#include <rlgl.h>
+
+#define CLAY_IMPLEMENTATION
+#include <clay.h>
 
 #include "helpers/include.h" // the standard include file with a lot of basic functions
-
-#include "../libs/raylib/raylib.h"
-#include "../libs/raylib/rlgl.h"
+#include "rendering/graphical/ui/ui_renderer.h"
+#include "rendering/graphical/ui/base_ui.h"
 
 #define SAMPLE_RATE 44100
-#define BUFFER_SIZE 8192
+#define BUFFER_SIZE 512
 #define AUDIO_THREAD_PRIORITY 0 // 0 is considered default priority, if clicking occurs try setting to 1 which raises it to critical
 
 typedef struct {
@@ -63,7 +67,6 @@ void DrawWaveform(const float *buffer, int bufferSize, int screenWidth, int scre
     // We need to draw a line between each point
     rlBegin(RL_LINES);
 
-    rlSetLineWidth(4);
     rlColor4ub(0, 255, 0, 255);
 
     for (int i = 0; i < bufferSize - 1; i++) {
@@ -94,43 +97,35 @@ int AudioThread(void* arg) {
 
 int main(void) {
     Init(1024 * 1024 * 4); // Initialize the Helper Library with a 4MB arena
-
     InitWindow(1920, 1080, "Hello, World!");
-    SetTargetFPS(120);
+    SetTargetFPS(250);
+
+    InitUI(1920, 1080);
+    SetUIRenderFunction(RenderMainUI);
+
+    SetWindowState(FLAG_WINDOW_RESIZABLE);
+
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(BUFFER_SIZE);
-
     stream = LoadAudioStream(SAMPLE_RATE, 32, 1);
     PlayAudioStream(stream);
 
     mtx_init(&audio_state.mutex, mtx_plain);
-    audio_state.running = true;
+    audio_state.running = false; // TODO: enable this again lol
 
     thrd_create(&audio_thread, AudioThread, &audio_state);
 
     while (!WindowShouldClose()) {
+        Clay_RenderCommandArray commands = DrawUI(GetScreenWidth(), GetScreenHeight(), GetMouseX(), GetMouseY(), IsMouseButtonDown(MOUSE_LEFT_BUTTON), GetMouseWheelMoveV().x, GetMouseWheelMoveV().y, GetFrameTime());
+
         BeginDrawing();
         ClearBackground(BLACK);
-        DrawText("Frequency 1: ", 10, 10, 20, WHITE);
-        DrawText(TextFormat("%f", frequency1), 150, 10, 20, WHITE);
-        DrawText("Frequency 2: ", 10, 40, 20, WHITE);
-        DrawText(TextFormat("%f", frequency2), 150, 40, 20, WHITE);
-        DrawText("FPS: ", 10, 70, 20, WHITE);
-        DrawText(TextFormat("%f", 1.0 / GetFrameTime()), 150, 70, 20, WHITE);
 
-        if (IsKeyDown(KEY_UP)) {
-            frequency1 = frequency1 + 100.0f * GetFrameTime();
-            frequency2 = frequency2 + 100.0f * GetFrameTime();
+        if (IsKeyPressed(KEY_F8)){
+            Clay_SetDebugModeEnabled(true);
         }
 
-        if (IsKeyDown(KEY_DOWN)) {
-            frequency1 = frequency1 - 100.0f * GetFrameTime();
-            frequency2 = frequency2 - 100.0f * GetFrameTime();
-        }
-
-        mtx_lock(&audio_state.mutex);
-        DrawWaveform(audio_state.buffer, BUFFER_SIZE, GetScreenWidth(), GetScreenHeight());
-        mtx_unlock(&audio_state.mutex);
+        RaylibRenderUI(commands);
 
         EndDrawing();
     }

@@ -7,9 +7,9 @@
     #include <stdlib.h>
 #endif
 
+#include "./basic/version.h" // The version file is included to make the version available in other files
 #include "./basic/string.h" // Unused yes, but it's included to make it available in other files
 #include "./basic/arena.h" // This however, is used. As the Init function creates an arena
-
 ARENA* default_arena;
 
 static inline void Init(size_t capacity) {

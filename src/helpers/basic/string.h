@@ -16,4 +16,7 @@ STRING ConsoleReadLine(const char* prompt, ARENA* arena);
 /// Reads a single key from the console.
 STRING ConsoleReadKey(const char* prompt, ARENA* arena);
 
+STRING StringCreate(const char* data, ARENA* arena);
+STRING StringConcat(STRING* string, const char* data);
+
 #endif // STRING_H

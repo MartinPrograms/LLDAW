@@ -77,3 +77,24 @@ STRING ConsoleReadKey(const char *prompt, ARENA *arena) {
 
   return str;
 }
+
+STRING StringCreate(const char *data, ARENA *arena) {
+    STRING result;
+    result.data = (char*)arena_alloc(arena, strlen(data) + 1);
+    if (result.data != NULL) {
+        strcpy_s(result.data, strlen(data) + 1, data);
+        result.length = strlen(data);
+    }
+    return result;
+}
+
+STRING StringConcat(STRING *string, const char *data) {
+    STRING result;
+    result.data = (char*)malloc(string->length + strlen(data) + 1);
+    if (result.data != NULL) {
+        strcpy(result.data, string->data);
+        strcat(result.data, data);
+        result.length = string->length + strlen(data);
+    }
+    return result;
+}

@@ -31,12 +31,16 @@ endif ()
 add_library(tinycthread STATIC ./libs/tinycthread/tinycthread.c)
 target_include_directories(tinycthread PUBLIC ./libs/tinycthread)
 
+add_library(clay INTERFACE)
+target_include_directories(clay INTERFACE ./libs/clay)
+
 # link all files from the src/* directory and their subdirectories
 file(GLOB_RECURSE SOURCES "src/*.c")
 add_executable(LLDAW ${SOURCES})
 
 target_link_libraries(LLDAW raylib)
 target_link_libraries(LLDAW tinycthread)
+target_link_libraries(LLDAW clay)
 
 if (APPLE)
     target_link_libraries(LLDAW "-framework IOKit")
@@ -44,3 +48,5 @@ if (APPLE)
     target_link_libraries(LLDAW "-framework OpenGL")
 endif()
 
+# Copy the ./resources directory to the build directory
+file(COPY resources DESTINATION ${CMAKE_BINARY_DIR})
