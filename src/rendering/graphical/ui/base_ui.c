@@ -182,6 +182,7 @@ void TopBar() {
                      .backgroundColor = COLOR_SCHEME_BACKGROUND_DARK,
                      .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
                  }){
+
                 WaveformVisualizer(audio_state.smallFifoBuffer, SMALL_FIFO_BUFFER_SIZE);
             }
         }
