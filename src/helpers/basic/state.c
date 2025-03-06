@@ -1,6 +1,8 @@
 #include "state.h"
 
-// Define play, pause, and stop function callbacks
-void (*PlayCallback)(void) = nullptr;
-void (*PauseCallback)(void) = nullptr;
-void (*StopCallback)(void) = nullptr;
+#include <stddef.h>
+
+// Define play, pause, and stop function callbacks with the format void return type and void* argument
+void (*PlayCallback)(void*) = NULL;
+void (*PauseCallback)(void*) = NULL;
+void (*StopCallback)(void*) = NULL;

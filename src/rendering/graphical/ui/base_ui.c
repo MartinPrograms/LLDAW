@@ -166,9 +166,9 @@ void TopBar() {
                 SpectrumVisualizer(audio_state.bigFifoBuffer, BIG_FIFO_BUFFER_SIZE);
             }
 
-            CreateButton("Play", PlayCallback);
-            CreateButton("Pause", PauseCallback);
-            CreateButton("Stop", StopCallback);
+            CreateButton("Play", nullptr, PlayCallback);
+            CreateButton("Pause", nullptr, PauseCallback);
+            CreateButton("Stop", nullptr, StopCallback);
 
             CLAY({
                      .id = CLAY_ID("TopBarWaveform"),
@@ -201,6 +201,50 @@ void TopBar() {
     }
 }
 
+void generator_edit(int i, Generator generator) {
+    CLAY({
+         .id = CLAY_IDI("Generator", i),
+         .layout = {
+         .sizing = {CLAY_SIZING_FIXED(400), CLAY_SIZING_GROW()},
+         .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+         .childGap = STANDARD_GAP,
+         .layoutDirection = CLAY_TOP_TO_BOTTOM
+         },
+         .backgroundColor = COLOR_SCHEME_BACKGROUND_TERTIARY,
+         }) {
+        // Generator name, frequency, amplitude, waveform, with buttons to change them
+        CLAY({
+             .id = CLAY_ID_LOCAL("GeneratorName"),
+             .layout = {
+             .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_FIT()},
+             .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+             .layoutDirection = CLAY_TOP_TO_BOTTOM,
+             .childAlignment = {CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_TOP}
+             }
+             }){
+            STRING generatorName = StringCreate("Generator ", frame_arena);
+            char *generatorIndex = malloc(10);
+            snprintf(generatorIndex, 10, "%d", i);
+            generatorName = StringConcat(&generatorName, generatorIndex);
+            CLAY_TEXT(GetString(generatorName.data), CLAY_TEXT_CONFIG(
+                          {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
+
+            STRING generatorType = StringCreate(generator.waveform == SINE ? "Sine" : generator.waveform == SQUARE ? "Square" : generator.waveform == SAWTOOTH ? "Sawtooth" : generator.waveform == TRIANGLE ? "Triangle" : "Noise", frame_arena);
+            CLAY_TEXT(GetString(generatorType.data), CLAY_TEXT_CONFIG(
+                          {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
+
+            STRING frequency = StringCreate("Frequency: ", frame_arena);
+            char *frequencyString = malloc(10);
+            // 0.00 format
+            snprintf(frequencyString, 10, "%.2f", generator.frequency);
+            frequency = StringConcat(&frequency, frequencyString);
+            frequency = StringConcat(&frequency, "hz");
+            CLAY_TEXT(GetString(frequency.data), CLAY_TEXT_CONFIG(
+                          {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
+        }
+    }
+}
+
 void BottomBar(){
     CLAY({
              .id = CLAY_ID("BottomBar"),
@@ -217,38 +261,7 @@ void BottomBar(){
 
         for(int i = 0; i < audio_state.generatorState.generatorCount; i++){
             Generator generator = audio_state.generatorState.generators[i];
-            CLAY({
-                .id = CLAY_IDI("Generator", i),
-                .layout = {
-                    .sizing = {CLAY_SIZING_FIXED(400), CLAY_SIZING_GROW()},
-                    .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
-                    .childGap = STANDARD_GAP,
-                    .layoutDirection = CLAY_TOP_TO_BOTTOM
-                },
-                .backgroundColor = COLOR_SCHEME_BACKGROUND_TERTIARY,
-            }){
-                // Generator name, frequency, amplitude, waveform, with buttons to change them
-                CLAY({
-                    .id = CLAY_ID_LOCAL("GeneratorName"),
-                    .layout = {
-                        .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_FIT()},
-                        .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
-                        .layoutDirection = CLAY_TOP_TO_BOTTOM,
-                        .childAlignment = {CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_TOP}
-                    }
-                }){
-                    STRING generatorName = StringCreate("Generator ", frame_arena);
-                    char *generatorIndex = malloc(10);
-                    snprintf(generatorIndex, 10, "%d", i);
-                    generatorName = StringConcat(&generatorName, generatorIndex);
-                    CLAY_TEXT(GetString(generatorName.data), CLAY_TEXT_CONFIG(
-                            {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
-
-                    STRING generatorType = StringCreate(generator.waveform == SINE ? "Sine" : generator.waveform == SQUARE ? "Square" : generator.waveform == SAWTOOTH ? "Sawtooth" : generator.waveform == TRIANGLE ? "Triangle" : "Noise", frame_arena);
-                    CLAY_TEXT(GetString(generatorType.data), CLAY_TEXT_CONFIG(
-                            {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
-                }
-            }
+            generator_edit(i, generator);
         }
     }
 }
@@ -278,12 +291,14 @@ void RenderMainUI(void) {
 
 void HandleButtonInteraction(Clay_ElementId id, Clay_PointerData data, intptr_t userData){
     // We will assume userData is the function pointer to the callback
-    void (*callback)() = (void (*)())userData;
+    ButtonData buttonData = *(ButtonData *)userData;
+    void* user_data = buttonData.userData;
+    void (*callback)(void*) = buttonData.callback;
 
     if (data.state == CLAY_POINTER_DATA_RELEASED_THIS_FRAME){
         printf("Button %d was clicked\n", id.id);
-        if ((void *) userData != NULL){
-            callback();
+        if ((void *) user_data != NULL){
+            callback((void*)user_data);
         }else{
             printf("No callback set for button %d\n", id.id);
         }
@@ -291,7 +306,7 @@ void HandleButtonInteraction(Clay_ElementId id, Clay_PointerData data, intptr_t 
 }
 
 /// Accepts a lambda function as a callback
-void CreateButton(const char* text, void (*callback)()) {
+void CreateButton(const char* text, void* userData, void (*callback)(void*)) {
     buttonCount++;
     Clay_ElementId id = CLAY_IDI("BUTTON", buttonCount);
     CLAY({
@@ -300,7 +315,11 @@ void CreateButton(const char* text, void (*callback)()) {
              .backgroundColor = COLOR_SCHEME_BUTTON,
              .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
          }) {
-        Clay_OnHover(HandleButtonInteraction, (intptr_t) callback);
+        ButtonData data;
+        data.text = text;
+        data.userData = userData;
+        data.callback = callback;
+        Clay_OnHover(HandleButtonInteraction, (intptr_t)&data);
         CLAY({
                  .id = CLAY_ID_LOCAL("ButtonText"), .layout = {.sizing = {CLAY_SIZING_GROW(),
                                                                           CLAY_SIZING_GROW()},

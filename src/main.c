@@ -23,6 +23,8 @@ void CalculateBuffer(float *buffer, int bufferSize) {
             sumL += generator->generate(generator, true, false);
             sumR += generator->generate(generator, false, true); // we advance the phase here!
         }
+        sumL = fmin(fmax(sumL, -1.0f), 1.0f);
+        sumR = fmin(fmax(sumR, -1.0f), 1.0f);
         buffer[i] = sumL;
 
         audio_state.bigFifoBuffer[audio_state.bigFifoBufferIndex] = buffer[i];
@@ -77,19 +79,23 @@ int AudioThread(void* arg) {
     return 0;
 }
 
-void play() {
+void play(void* userdata) {
+    // mark userdata as optional, so the warning dose not show up
+    (void)userdata;
     mtx_lock(&audio_state.mutex);
     audio_state.paused = false;
     mtx_unlock(&audio_state.mutex);
 }
 
-void pauseCallback() {
+void pauseCallback(void* userdata) {
+    (void)userdata;
     mtx_lock(&audio_state.mutex);
     audio_state.paused = true;
     mtx_unlock(&audio_state.mutex);
 }
 
-void stop() {
+void stop(void* userdata) {
+    (void)userdata;
     mtx_lock(&audio_state.mutex);
     audio_state.paused = true;
     audio_state.reset = true;
@@ -112,11 +118,20 @@ int main(void) {
         .running = true,
         .paused = true,
         .reset = false,
-        .generatorState = generator_init(32) // 10 generators max
+        .generatorState = generator_init(2048) // cpu issues will probably happen around #500 generators
     };
 
-    generator_add(&audio_state.generatorState,
-                  (Generator) {.waveform = SINE, .frequency = 440, .amplitude = 0.5f, .generate = (void*)GenerateWaveform});
+    for (int i = 0; i < 1; i++){
+        // Add a generator at 80, 160, 320, 640, 1280, 2560, 5120, 10240 Hz with diminishing amplitude
+        generator_add(&audio_state.generatorState, (Generator) {
+            .frequency = 40 * pow(2, i),
+            .phase = 0,
+            .waveform = SINE,
+            .amplitude = 1.0f / (i + 1),
+            .generate = GenerateWaveform,
+            .panning = 0
+        });
+    }
 
     mtx_init(&audio_state.mutex, mtx_plain);
     audio_state.running = true;
@@ -151,9 +166,9 @@ int main(void) {
 
         if (IsKeyPressed(KEY_SPACE)) {
             if (audio_state.paused) {
-                play();
+                play(nullptr);
             } else {
-                stop();
+                stop(nullptr);
             }
         }
 

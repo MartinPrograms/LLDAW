@@ -13,7 +13,12 @@ void WaveformDraw(const float* buffer, int bufferSize, Color color, float width,
     for (int i = 0; i < bufferSize; i++) {
         points[i] = (Vector2){0, 0};
         points[i].x = (float)i * width / bufferSize;
-        points[i].y = centerY + buffer[i] * centerY;
+
+        float sample = buffer[i];
+        if (sample > 1.0f) sample = 1.0f;
+        if (sample < -1.0f) sample = -1.0f;
+        points[i].y = centerY - sample * centerY;
+
         points[i].x += x;
         points[i].y += y;
     }
@@ -31,108 +36,87 @@ void WaveformDraw(const float* buffer, int bufferSize, Color color, float width,
 
 // Function to compute the FFT and draw the frequency spectrum
 void SpectrumDraw(const float* buffer, int bufferSize, Color color, float width, float height, float x, float y, float sampleRate, int quality) {
-    // Initialize kiss_fft
+    // --- Compute FFT ---
     int fftSize = bufferSize;
     kiss_fft_cfg cfg = kiss_fft_alloc(fftSize, 0, NULL, NULL);
     kiss_fft_cpx fftInput[fftSize];
     kiss_fft_cpx fftOutput[fftSize];
 
-    // Prepare input data for FFT
+    // Prepare input data for FFT (real-valued, imaginary = 0)
     for (int i = 0; i < fftSize; i++) {
-        fftInput[i].r = buffer[i]; // Real part (audio samples)
-        fftInput[i].i = 0;        // Imaginary part (0 for real input)
+        fftInput[i].r = buffer[i];
+        fftInput[i].i = 0;
     }
 
-    // Perform FFT
+    // Execute FFT
     kiss_fft(cfg, fftInput, fftOutput);
-
-    // Free FFT configuration
     kiss_fft_free(cfg);
 
-    // Compute magnitudes and find the maximum magnitude for normalization
-    float magnitudes[fftSize / 2 + 1];
+    // --- Compute Magnitudes and Normalize ---
+    int halfSize = fftSize / 2;
+    float magnitudes[halfSize + 1];
     float maxMagnitude = 0.0f;
-    for (int i = 0; i <= fftSize / 2; i++) {
+    for (int i = 0; i <= halfSize; i++) {
         magnitudes[i] = sqrtf(fftOutput[i].r * fftOutput[i].r + fftOutput[i].i * fftOutput[i].i);
         if (magnitudes[i] > maxMagnitude) {
             maxMagnitude = magnitudes[i];
         }
     }
-
-    // Normalize magnitudes to fit within the height
     if (maxMagnitude > 0) {
-        for (int i = 0; i <= fftSize / 2; i++) {
+        for (int i = 0; i <= halfSize; i++) {
             magnitudes[i] /= maxMagnitude;
         }
     }
 
-    // Logarithmic frequency mapping
-    float minFreq = 20.0f;   // Minimum frequency (20 Hz)
-    float maxFreq = sampleRate / 2.0f; // Maximum frequency (Nyquist frequency)
-    float logMin = logf(minFreq);
-    float logMax = logf(maxFreq);
-
-    // Draw the frequency spectrum as a smooth, connected line
+    // --- Draw Vertical Lines with Logarithmic Frequency Mapping ---
+    // We iterate over 'quality' steps. For each step, we compute a normalized
+    // horizontal position (u in [0,1]) and then compute the corresponding frequency.
+    // The mapping is piecewise:
+    //  • For u in [0, 0.5]: f(u) = 20 * (440/20)^(2*u)
+    //       so that f(0)=20 and f(0.5)=20*(440/20)=440.
+    //  • For u in [0.5, 1]: let t = 2*u - 1, then:
+    //       f(u) = 440 * (22500/440)^( t^(1/0.725) )
+    //       so that f(0.5)=440 and f(1)=22500, and approximately f(0.75)=2000.
     rlBegin(RL_LINES);
     rlSetLineWidth(2);
-    rlColor4ub(color.r, color.g, color.b, color.a);
-
     for (int i = 0; i < quality; i++) {
-        // Calculate the logarithmic frequency for this point
-        float t = (float)i / (quality - 1); // Normalized position [0, 1]
-        float logFreq = logMin + t * (logMax - logMin); // Logarithmic frequency
-        float freq = expf(logFreq); // Convert back to linear frequency
+        float u = (float)i / (quality - 1); // normalized [0, 1]
+        float f; // frequency corresponding to this u
 
-        // Find the corresponding FFT bin for this frequency
-        float bin = freq * fftSize / sampleRate;
-        int bin1 = (int)bin; // Lower bin index
-        int bin2 = bin1 + 1; // Upper bin index
-
-        // Clamp bin indices to valid range
-        if (bin1 < 0) bin1 = 0;
-        if (bin1 > fftSize / 2) bin1 = fftSize / 2;
-        if (bin2 < 0) bin2 = 0;
-        if (bin2 > fftSize / 2) bin2 = fftSize / 2;
-
-        // Interpolate magnitude between bins
-        float fraction = bin - bin1; // Fractional part for interpolation
-        float magnitude = magnitudes[bin1] * (1 - fraction) + magnitudes[bin2] * fraction;
-
-        // Map to screen coordinates
-        float screenX = x + t * width; // Logarithmic spacing
-        float screenY = y + height - magnitude * height;
-
-        // Draw a line to the next point (if not the last point)
-        if (i < quality - 1) {
-            float nextT = (float)(i + 1) / (quality - 1);
-            float nextLogFreq = logMin + nextT * (logMax - logMin);
-            float nextFreq = expf(nextLogFreq);
-            float nextBin = nextFreq * fftSize / sampleRate;
-            int nextBin1 = (int)nextBin;
-            int nextBin2 = nextBin1 + 1;
-
-            // Clamp next bin indices to valid range
-            if (nextBin1 < 0) nextBin1 = 0;
-            if (nextBin1 > fftSize / 2) nextBin1 = fftSize / 2;
-            if (nextBin2 < 0) nextBin2 = 0;
-            if (nextBin2 > fftSize / 2) nextBin2 = fftSize / 2;
-
-            // Interpolate next magnitude
-            float nextFraction = nextBin - nextBin1;
-            float nextMagnitude = magnitudes[nextBin1] * (1 - nextFraction) + magnitudes[nextBin2] * nextFraction;
-
-            // Map next point to screen coordinates
-            float nextScreenX = x + nextT * width;
-            float nextScreenY = y + height - nextMagnitude * height;
-
-            // Draw a line between the current and next point
-            rlVertex2f(screenX, screenY);
-            rlVertex2f(nextScreenX, nextScreenY);
+        if (u < 0.5f) {
+            // Lower segment: 20 Hz -> 440 Hz (u: 0 -> 0.5)
+            float t = 2.0f * u;  // t goes from 0 to 1
+            // f = 20 * (440/20)^t
+            f = 20.0f * powf(440.0f / 20.0f, t);
+        } else {
+            // Upper segment: 440 Hz -> 22.5 kHz (u: 0.5 -> 1)
+            float t = 2.0f * u - 1.0f;  // t goes from 0 to 1
+            // Inverse of: x = 0.5 + 0.5 * pow((log(f)-log(440))/(log(22500)-log(440)), 0.725)
+            // yields: f = 440 * (22500/440)^( t^(1/0.725) )
+            float exponent = powf(t, 1.0f / 0.725f);
+            f = 440.0f * powf(22500.0f / 440.0f, exponent);
         }
-    }
 
+        // Clamp frequency to Nyquist (sampleRate/2)
+        if (f > sampleRate / 2.0f) f = sampleRate / 2.0f;
+
+        // Map frequency to FFT bin index:
+        int bin = (int)(f * fftSize / sampleRate);
+        if (bin > halfSize) bin = halfSize;
+
+        // Compute the x position (evenly spaced along the width)
+        float lineX = x + u * width;
+        // Scale the magnitude to the drawing height
+        float lineHeight = magnitudes[bin] * height;
+
+        // Draw vertical line (from bottom up)
+        rlColor4ub(color.r, color.g, color.b, color.a);
+        rlVertex2f(lineX, y + height);               // Bottom of the line
+        rlVertex2f(lineX, y + height - lineHeight);    // Top of the line
+    }
     rlEnd();
 }
+
 
 void RenderCustomElement(CustomElement *element, float width, float height, float x, float y) {
     switch (element->type){
