@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include "generator.h"
 
+#include "audio_state.h"
+
 GeneratorState generator_init(int capacity) {
     GeneratorState state = {
             .generators = NULL,
@@ -35,25 +37,51 @@ void generator_free(GeneratorState *state) {
     arena_destroy(state->arena);
 }
 
-float GenerateWaveform(float frequency, float phase, float amplitude, Waveform waveform) {
+float GenerateWaveform(void* generator_void, bool  rightChannel, bool advancePhase) {
+    Generator* generator = (Generator*)generator_void;
     float value = 0;
+
+    // Capture parameters at start of calculation
+    float phase = generator->phase;
+    const float frequency = generator->frequency;
+    const float amplitude = generator->amplitude;
+    const Waveform waveform = generator->waveform;
+    const float panning = generator->panning;
+
+    // Phase increment FIRST (before wrapping)
+    if (advancePhase) {
+        generator->phase += 2.0f * PI * frequency / SAMPLE_RATE;
+
+        // Phase wrapping with modulus (keeps phase in [0, 2π) range)
+        generator->phase = fmodf(generator->phase, 2.0f * PI);
+    }
+    // Handle negative phase values (fmod() can return negatives)
+    if (generator->phase < 0)
+        generator->phase += 2.0f * PI;
+
     switch (waveform) {
         case SINE:
-            value = sinf(2 * PI * frequency * phase) * amplitude;
-            break;
-        case SQUARE:
-            value = sinf(2 * PI * frequency * phase) > 0 ? amplitude : -amplitude;
+            value = sinf(phase) * amplitude;  // Use original phase value
             break;
         case SAWTOOTH:
-            value = fmodf(phase, 1) * amplitude;
+            value = (2.0f * phase / (2.0f * PI) - 1.0f) * amplitude;
+            break;
+        case SQUARE:
+            value = (phase < PI) ? amplitude : -amplitude;
             break;
         case TRIANGLE:
-            value = 1 - 4 * fabsf(roundf(phase) - phase) * amplitude;
+            value = (2.0f / PI) * asinf(sinf(phase)) * amplitude;
             break;
         case NOISE:
-            value = (rand() % 1000) / 1000.0f * amplitude;
+            value = (float)GetRandomValue(-1000, 1000) / 1000.0f * amplitude;
+            break;
+        default:
             break;
     }
+
+    // Apply panning (0 is center, -1 is left, 1 is right)
+    if (rightChannel) value *= (1.0f - panning);
+    else value *= (1.0f + panning);
+
     return value;
 }
-

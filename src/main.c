@@ -13,12 +13,17 @@
 #include "rendering/graphical/ui/ui_renderer.h"
 #include "rendering/graphical/ui/base_ui.h"
 
-void CalculateBuffer(float *buffer, int frames) {
-    for (int i = 0; i < frames; i++) {
+void CalculateBuffer(float *buffer, int bufferSize) {
+    for (int i = 0; i < bufferSize; i++) {
+        float sumL = 0;
+        float sumR = 0;
+
         for (int j = 0; j < audio_state.generatorState.generatorCount; j++) {
-            Generator generator = audio_state.generatorState.generators[j];
-            buffer[i] += generator.generate(generator.frequency, generator.phase, generator.amplitude, generator.waveform);
+            Generator *generator = &audio_state.generatorState.generators[j];
+            sumL += generator->generate(generator, true, false);
+            sumR += generator->generate(generator, false, true); // we advance the phase here!
         }
+        buffer[i] = sumL;
 
         audio_state.bigFifoBuffer[audio_state.bigFifoBufferIndex] = buffer[i];
         audio_state.bigFifoBufferIndex = (audio_state.bigFifoBufferIndex + 1) % BIG_FIFO_BUFFER_SIZE;
@@ -28,29 +33,29 @@ void CalculateBuffer(float *buffer, int frames) {
     }
 }
 
-float* as_buffer = NULL;
-float* as_bigFifoBuffer = NULL;
-float* as_smallFifoBuffer = NULL;
-
 int AudioThread(void* arg) {
     AudioState* state = (AudioState*)arg;
-    // Horrible code, but thats the fault of mr microsoft
-    as_buffer = malloc(BUFFER_SIZE * sizeof(float));
-    audio_state.buffer = as_buffer;
-    as_bigFifoBuffer = malloc(BUFFER_SIZE * sizeof(float));
-    audio_state.bigFifoBuffer = as_bigFifoBuffer;
-    as_smallFifoBuffer = malloc(BUFFER_SIZE * sizeof(float));
-    audio_state.smallFifoBuffer = as_smallFifoBuffer;
+
+    // Thanks microsoft, i could not have had a worse time trying to get this to work :(
+
+    state->buffer = (float*)malloc(BUFFER_SIZE * sizeof(float)); // times 2 because we have 2 channels
+    state->bigFifoBuffer = (float*)malloc(BIG_FIFO_BUFFER_SIZE * sizeof(float));
+    state->smallFifoBuffer = (float*)malloc(SMALL_FIFO_BUFFER_SIZE * sizeof(float));
+
+    if (!state->buffer || !state->bigFifoBuffer || !state->smallFifoBuffer) {
+        fprintf(stderr, "Memory allocation failed\n");
+        return -1;
+    }
 
     while (state->running) {
         if (state->reset) {
-            memset(as_buffer, 0, sizeof(float) * BUFFER_SIZE);
+            memset(state->buffer, 0, sizeof(float) * BUFFER_SIZE); // times 2 because we have 2 channels
             state->reset = false;
 
-            memset(as_bigFifoBuffer, 0, sizeof(float) * BIG_FIFO_BUFFER_SIZE);
+            memset(state->bigFifoBuffer, 0, sizeof(float) * BIG_FIFO_BUFFER_SIZE);
             state->bigFifoBufferIndex = 0;
 
-            memset(as_smallFifoBuffer, 0, sizeof(float) * SMALL_FIFO_BUFFER_SIZE);
+            memset(state->smallFifoBuffer, 0, sizeof(float) * SMALL_FIFO_BUFFER_SIZE);
             state->smallFifoBufferIndex = 0;
 
             continue;
@@ -63,8 +68,8 @@ int AudioThread(void* arg) {
         mtx_lock(&state->mutex);
 
         if (IsAudioStreamProcessed(stream)) {
-            CalculateBuffer(as_buffer, BUFFER_SIZE);
-            UpdateAudioStream(stream, as_buffer, BUFFER_SIZE);
+            CalculateBuffer(state->buffer, BUFFER_SIZE);
+            UpdateAudioStream(stream, state->buffer, BUFFER_SIZE);
         }
 
         mtx_unlock(&state->mutex);
@@ -96,7 +101,7 @@ int main(void) {
     InitWindow(1920, 1080, "LLDAW");
     SetTargetFPS(240);
 
-    SetWindowState(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
+    SetWindowState(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED | FLAG_MSAA_4X_HINT);
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(BUFFER_SIZE);
@@ -107,11 +112,11 @@ int main(void) {
         .running = true,
         .paused = true,
         .reset = false,
-        .generatorState = generator_init(10) // 10 generators max
+        .generatorState = generator_init(32) // 10 generators max
     };
 
     generator_add(&audio_state.generatorState,
-                  (Generator) {.waveform = SINE, .frequency = 440, .amplitude = 0.5f, .generate = GenerateWaveform});
+                  (Generator) {.waveform = SINE, .frequency = 440, .amplitude = 0.5f, .generate = (void*)GenerateWaveform});
 
     mtx_init(&audio_state.mutex, mtx_plain);
     audio_state.running = true;
@@ -127,7 +132,8 @@ int main(void) {
     SetUIRenderFunction(RenderMainUI);
 
     while (!WindowShouldClose()) {
-        Clay_RenderCommandArray commands = DrawUI(GetScreenWidth(),
+
+         Clay_RenderCommandArray commands = DrawUI(GetScreenWidth(),
                                                   GetScreenHeight(),
                                                   GetMouseX(),
                                                   GetMouseY(),

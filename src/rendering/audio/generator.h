@@ -18,7 +18,8 @@ typedef struct {
     float phase;
     Waveform waveform;
     float amplitude; // [-1, 1] (inverting polarity is an option)
-    float (*generate)(float frequency, float phase, float amplitude, Waveform waveform);
+    float (*generate)(void*, bool, bool); // Function pointer to the generate function
+    float panning; // [-1, 1] -1 is left, 1 is right
 } Generator;
 
 typedef struct {
@@ -33,6 +34,6 @@ void generator_add(GeneratorState* state, Generator generator);
 void generator_remove(GeneratorState* state, int index);
 void generator_free(GeneratorState* state);
 
-float GenerateWaveform(float frequency, float phase, float amplitude, Waveform waveform);
+float GenerateWaveform(void* generator, bool rightChannel, bool advancePhase);
 
 #endif

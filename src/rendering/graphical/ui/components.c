@@ -65,7 +65,7 @@ void SpectrumVisualizer(const float *buffer, int bufferSize) {
             .customData.spectrum = {
                 .buffer = buffer,
                 .bufferSize = bufferSize,
-                .quality = 4096
+                .quality = 400
             }
         };
 

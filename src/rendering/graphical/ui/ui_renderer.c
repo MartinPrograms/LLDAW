@@ -182,7 +182,7 @@ void InitUI(float sizeX, float sizeY) {
     arena = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, malloc(totalMemorySize));
 
     Clay_Initialize(arena, (Clay_Dimensions){sizeX, sizeY}, (Clay_ErrorHandler){HandleClayErrors, .userData = NULL});
-    Font font = LoadFontEx("resources/Roboto-Regular.ttf", 64, 0, 250);
+    Font font = LoadFontEx("resources/Roboto-Regular.ttf", STANDARD_FONT_SIZE * 2, nullptr, 250); // standard font size is 16, but we want to double it, so we have a bit more quality
     Clay_SetMeasureTextFunction(Raylib_MeasureText, &font);
 
     fonts = malloc(sizeof(Font) * 1);
