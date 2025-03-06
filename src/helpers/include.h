@@ -3,6 +3,8 @@
 #if defined(__APPLE__) || defined(__linux__)
     #include <termios.h>
     #include <unistd.h>
+    #include <stdio.h>
+    #include <stdlib.h>
 #endif
 
 #include "./basic/string.h" // Unused yes, but it's included to make it available in other files

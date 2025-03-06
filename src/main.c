@@ -6,9 +6,10 @@
 #include "helpers/include.h" // the standard include file with a lot of basic functions
 
 #include "../libs/raylib/raylib.h"
+#include "../libs/raylib/rlgl.h"
 
 #define SAMPLE_RATE 44100
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 8192
 #define AUDIO_THREAD_PRIORITY 0 // 0 is considered default priority, if clicking occurs try setting to 1 which raises it to critical
 
 typedef struct {
@@ -16,6 +17,7 @@ typedef struct {
     float phase2;
     mtx_t mutex;
     bool running;
+    float* buffer;
 } AudioState;
 
 AudioState audio_state = {0};
@@ -34,7 +36,8 @@ void GenerateSineWave(float *buffer, int frames) {
 
     for (int i = 0; i < frames; i++) {
         float sample1 = sinf(phase1);
-        float sample2 = sinf(phase2);
+        // Sample2 is a triangle wave
+        float sample2 = 2.0f * fabsf(2.0f * (phase2 / (2 * PI) - floorf(phase2 / (2 * PI) + 0.5f))) - 1.0f;
 
         buffer[i] = (sample1 + sample2) * 0.5f;  // Mix the two waves and reduce volume
 
@@ -46,9 +49,35 @@ void GenerateSineWave(float *buffer, int frames) {
     }
 }
 
+void DrawWaveform(const float *buffer, int bufferSize, int screenWidth, int screenHeight) {
+    int centerY = screenHeight / 2;
+    Vector2 points[bufferSize];
+
+    for (int i = 0; i < bufferSize; i++) {
+        int x = (i * screenWidth) / bufferSize;
+        int y = centerY + (int)(buffer[i] * ((float)screenHeight / 2)); // Scale the sample
+
+        points[i] = (Vector2){x, y};
+    }
+
+    // We need to draw a line between each point
+    rlBegin(RL_LINES);
+
+    rlSetLineWidth(4);
+    rlColor4ub(0, 255, 0, 255);
+
+    for (int i = 0; i < bufferSize - 1; i++) {
+        rlVertex2f(points[i].x, points[i].y);
+        rlVertex2f(points[i + 1].x, points[i + 1].y);
+    }
+
+    rlEnd();
+}
+
 int AudioThread(void* arg) {
     AudioState* state = (AudioState*)arg;
     float buffer[BUFFER_SIZE];
+    audio_state.buffer = buffer;
 
     while (state->running) {
         mtx_lock(&state->mutex);
@@ -67,7 +96,7 @@ int main(void) {
     Init(1024 * 1024 * 4); // Initialize the Helper Library with a 4MB arena
 
     InitWindow(1920, 1080, "Hello, World!");
-    SetTargetFPS(60);
+    SetTargetFPS(120);
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(BUFFER_SIZE);
 
@@ -81,11 +110,13 @@ int main(void) {
 
     while (!WindowShouldClose()) {
         BeginDrawing();
-        ClearBackground(RAYWHITE);
-        DrawText("Frequency 1: ", 10, 10, 20, BLACK);
-        DrawText(TextFormat("%f", frequency1), 150, 10, 20, BLACK);
-        DrawText("Frequency 2: ", 10, 40, 20, BLACK);
-        DrawText(TextFormat("%f", frequency2), 150, 40, 20, BLACK);
+        ClearBackground(BLACK);
+        DrawText("Frequency 1: ", 10, 10, 20, WHITE);
+        DrawText(TextFormat("%f", frequency1), 150, 10, 20, WHITE);
+        DrawText("Frequency 2: ", 10, 40, 20, WHITE);
+        DrawText(TextFormat("%f", frequency2), 150, 40, 20, WHITE);
+        DrawText("FPS: ", 10, 70, 20, WHITE);
+        DrawText(TextFormat("%f", 1.0 / GetFrameTime()), 150, 70, 20, WHITE);
 
         if (IsKeyDown(KEY_UP)) {
             frequency1 = frequency1 + 100.0f * GetFrameTime();
@@ -96,6 +127,10 @@ int main(void) {
             frequency1 = frequency1 - 100.0f * GetFrameTime();
             frequency2 = frequency2 - 100.0f * GetFrameTime();
         }
+
+        mtx_lock(&audio_state.mutex);
+        DrawWaveform(audio_state.buffer, BUFFER_SIZE, GetScreenWidth(), GetScreenHeight());
+        mtx_unlock(&audio_state.mutex);
 
         EndDrawing();
     }
