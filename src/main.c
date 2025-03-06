@@ -7,33 +7,17 @@
 
 #define CLAY_IMPLEMENTATION
 #include <clay.h>
+#include <string.h>
 
 #include "helpers/include.h" // the standard include file with a lot of basic functions
 #include "rendering/graphical/ui/ui_renderer.h"
 #include "rendering/graphical/ui/base_ui.h"
 
-#define SAMPLE_RATE 44100
-#define BUFFER_SIZE 512
-#define AUDIO_THREAD_PRIORITY 0 // 0 is considered default priority, if clicking occurs try setting to 1 which raises it to critical
-
-typedef struct {
-    float phase1;
-    float phase2;
-    mtx_t mutex;
-    bool running;
-    float* buffer;
-    bool paused;
-} AudioState;
-
-AudioState audio_state = {0};
-AudioStream stream = {0};
-thrd_t audio_thread;
-
 float phase1 = 0.0f;
 float phase2 = 0.0f;
 
 float frequency1 = 440.0f;
-float frequency2 = 660.0f;
+float frequency2 = 880.0f;
 
 void GenerateSineWave(float *buffer, int frames) {
     float phaseStep1 = 2 * PI * frequency1 / SAMPLE_RATE;
@@ -41,10 +25,15 @@ void GenerateSineWave(float *buffer, int frames) {
 
     for (int i = 0; i < frames; i++) {
         float sample1 = sinf(phase1);
-        // Sample2 is a triangle wave
         float sample2 = 2.0f * fabsf(2.0f * (phase2 / (2 * PI) - floorf(phase2 / (2 * PI) + 0.5f))) - 1.0f;
 
         buffer[i] = (sample1 + sample2) * 0.5f;  // Mix the two waves and reduce volume
+
+        audio_state.bigFifoBuffer[audio_state.bigFifoBufferIndex] = buffer[i];
+        audio_state.bigFifoBufferIndex = (audio_state.bigFifoBufferIndex + 1) % BIG_FIFO_BUFFER_SIZE;
+
+        audio_state.smallFifoBuffer[audio_state.smallFifoBufferIndex] = buffer[i];
+        audio_state.smallFifoBufferIndex = (audio_state.smallFifoBufferIndex + 1) % SMALL_FIFO_BUFFER_SIZE;
 
         phase1 += phaseStep1;
         phase2 += phaseStep2;
@@ -54,39 +43,33 @@ void GenerateSineWave(float *buffer, int frames) {
     }
 }
 
-void DrawWaveform(const float *buffer, int bufferSize, int screenWidth, int screenHeight) {
-    int centerY = screenHeight / 2;
-    Vector2 points[bufferSize];
-
-    for (int i = 0; i < bufferSize; i++) {
-        int x = (i * screenWidth) / bufferSize;
-        int y = centerY + (int)(buffer[i] * ((float)screenHeight / 2)); // Scale the sample
-
-        points[i] = (Vector2){x, y};
-    }
-
-    // We need to draw a line between each point
-    rlBegin(RL_LINES);
-
-    rlColor4ub(0, 255, 0, 255);
-
-    for (int i = 0; i < bufferSize - 1; i++) {
-        rlVertex2f(points[i].x, points[i].y);
-        rlVertex2f(points[i + 1].x, points[i + 1].y);
-    }
-
-    rlEnd();
-}
-
 int AudioThread(void* arg) {
     AudioState* state = (AudioState*)arg;
     float buffer[BUFFER_SIZE];
     audio_state.buffer = buffer;
+    float fifoBuffer[BIG_FIFO_BUFFER_SIZE];
+    audio_state.bigFifoBuffer = fifoBuffer;
+    float smallFifoBuffer[SMALL_FIFO_BUFFER_SIZE];
+    audio_state.smallFifoBuffer = smallFifoBuffer;
 
     while (state->running) {
+        if (state->reset) {
+            memset(buffer, 0, sizeof(buffer));
+            state->reset = false;
+
+            memset(fifoBuffer, 0, sizeof(fifoBuffer));
+            state->bigFifoBufferIndex = 0;
+
+            memset(smallFifoBuffer, 0, sizeof(smallFifoBuffer));
+            state->smallFifoBufferIndex = 0;
+
+            continue;
+        }
+
         if (state->paused) {
             continue;
         }
+
         mtx_lock(&state->mutex);
 
         if (IsAudioStreamProcessed(stream)) {
@@ -113,24 +96,31 @@ void pauseCallback() {
 
 void stop() {
     mtx_lock(&audio_state.mutex);
-    audio_state.paused = true; // this only differs because thisll later reset the buffers
+    audio_state.paused = true;
+    audio_state.phase1 = 0.0f;
+    audio_state.phase2 = 0.0f;
+    audio_state.reset = true;
     mtx_unlock(&audio_state.mutex);
 }
 
 int main(void) {
     Init(1024 * 1024 * 4); // Initialize the Helper Library with a 4MB arena
-    InitWindow(1920, 1080, "Hello, World!");
+    InitWindow(1920, 1080, "LLDAW");
     SetTargetFPS(240);
 
-    InitUI(1920, 1080);
-    SetUIRenderFunction(RenderMainUI);
-
-    SetWindowState(FLAG_WINDOW_RESIZABLE);
+    SetWindowState(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(BUFFER_SIZE);
     stream = LoadAudioStream(SAMPLE_RATE, 32, 1);
     PlayAudioStream(stream);
+
+    audio_state = (AudioState) {
+        .phase1 = 0.0f,
+        .phase2 = 0.0f,
+        .running = true,
+        .paused = true
+    };
 
     mtx_init(&audio_state.mutex, mtx_plain);
     audio_state.running = true;
@@ -142,6 +132,9 @@ int main(void) {
 
     thrd_create(&audio_thread, AudioThread, &audio_state);
 
+    InitUI(1920, 1080);
+    SetUIRenderFunction(RenderMainUI);
+
     while (!WindowShouldClose()) {
         Clay_RenderCommandArray commands = DrawUI(GetScreenWidth(), GetScreenHeight(), GetMouseX(), GetMouseY(), IsMouseButtonDown(MOUSE_LEFT_BUTTON), GetMouseWheelMoveV().x, GetMouseWheelMoveV().y, GetFrameTime());
 
@@ -150,6 +143,19 @@ int main(void) {
 
         if (IsKeyPressed(KEY_F8)){
             Clay_SetDebugModeEnabled(true);
+        }
+
+        float freqStep = 100.0f * GetFrameTime();
+        if (IsKeyDown(KEY_DOWN))
+        {
+            frequency1 -= freqStep;
+            frequency2 -= freqStep;
+        }
+
+        if (IsKeyDown(KEY_UP))
+        {
+            frequency1 += freqStep;
+            frequency2 += freqStep;
         }
 
         RaylibRenderUI(commands);

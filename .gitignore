@@ -4,3 +4,4 @@
 /libs/tinycthread/
 /libs/clay/
 /cmake-build-debug-system/
+/libs/kiss_fft/

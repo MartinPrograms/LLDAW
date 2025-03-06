@@ -11,6 +11,7 @@
 #include "./basic/state.h" // State file, includes some UI callbacks, and information on the current state
 #include "./basic/string.h" // Unused yes, but it's included to make it available in other files
 #include "./basic/arena.h" // This however, is used. As the Init function creates an arena
+#include "../rendering/audio/audio_state.h" // The audio state is included to make it available in other files
 ARENA* default_arena;
 ARENA* frame_arena;
 

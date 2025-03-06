@@ -1,4 +1,5 @@
 #include "base_ui.h"
+#include "components.h"
 #include <printf.h>
 #include <string.h>
 #include <math.h>
@@ -126,7 +127,6 @@ void TopBar() {
         },
              .backgroundColor = COLOR_SCHEME_BACKGROUND_SECONDARY,
              .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
-
          }) {
 
         STRING title = StringCreate("LLDAW", frame_arena);
@@ -151,9 +151,39 @@ void TopBar() {
                     .childAlignment = {CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER}
             }
              }) {
+            CLAY({
+                     .id = CLAY_ID("TopBarSpectrum"),
+                     .layout = {
+                        .sizing = {CLAY_SIZING_FIXED(200), CLAY_SIZING_GROW()},
+                        .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                        .childGap = STANDARD_GAP,
+                        .layoutDirection = CLAY_LEFT_TO_RIGHT,
+                        .childAlignment = {CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER}
+                },
+                     .backgroundColor = COLOR_SCHEME_BACKGROUND_DARK,
+                     .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
+                 }){
+                SpectrumVisualizer(audio_state.bigFifoBuffer, BIG_FIFO_BUFFER_SIZE);
+            }
+
             CreateButton("Play", PlayCallback);
             CreateButton("Pause", PauseCallback);
             CreateButton("Stop", StopCallback);
+
+            CLAY({
+                     .id = CLAY_ID("TopBarWaveform"),
+                     .layout = {
+                        .sizing = {CLAY_SIZING_FIXED(200), CLAY_SIZING_GROW()},
+                        .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                        .childGap = STANDARD_GAP,
+                        .layoutDirection = CLAY_LEFT_TO_RIGHT,
+                        .childAlignment = {CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER}
+                },
+                     .backgroundColor = COLOR_SCHEME_BACKGROUND_DARK,
+                     .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
+                 }){
+                WaveformVisualizer(audio_state.smallFifoBuffer, SMALL_FIFO_BUFFER_SIZE);
+            }
         }
 
         CLAY({
@@ -196,7 +226,7 @@ void Root(){
                 .layoutDirection = CLAY_TOP_TO_BOTTOM
         },
              .backgroundColor = COLOR_SCHEME_BACKGROUND,
-             .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
+             .cornerRadius = CLAY_CORNER_RADIUS(0)
          }) {
         TopBar();
         BaseContainer();
