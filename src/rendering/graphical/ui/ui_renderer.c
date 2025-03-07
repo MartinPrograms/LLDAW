@@ -34,6 +34,7 @@ Clay_RenderCommandArray DrawUI(float sizeX, float sizeY, float mouseX, float mou
 #include "string.h"
 #include "stdio.h"
 #include "ui_settings.h"
+#include "components.h"
 
 static inline Clay_Dimensions Raylib_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *config, void *userData) {
     // Measure string size for Font
@@ -174,6 +175,7 @@ void Clay_Raylib_Render(Clay_RenderCommandArray renderCommands)
 
 void RaylibRenderUI(Clay_RenderCommandArray renderCommands) {
     Clay_Raylib_Render(renderCommands);
+    Reset();
 }
 
 

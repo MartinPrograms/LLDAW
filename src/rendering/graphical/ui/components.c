@@ -234,3 +234,8 @@ void CreateDropdown(int id, const char **items, int itemCount, int selectedIndex
     *outIndex = state->selectedIndex;
 }
 
+void Reset() {
+    CustomComponentIndex = 0;
+    ButtonCount = 0;
+}
+
