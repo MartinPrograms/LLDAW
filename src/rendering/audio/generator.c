@@ -46,7 +46,6 @@ float GenerateWaveform(void* generator_void, bool  rightChannel, bool advancePha
     const float frequency = generator->frequency;
     const float amplitude = generator->amplitude;
     const Waveform waveform = generator->waveform;
-    const float panning = generator->panning;
 
     // Phase increment FIRST (before wrapping)
     if (advancePhase) {
@@ -80,8 +79,18 @@ float GenerateWaveform(void* generator_void, bool  rightChannel, bool advancePha
     }
 
     // Apply panning (0 is center, -1 is left, 1 is right)
-    if (rightChannel) value *= (1.0f - panning);
-    else value *= (1.0f + panning);
+    const float pan = generator->panning;  // pan range: -1.0f (left) to 1.0f (right)
+    float leftGain, rightGain;
+
+    if (rightChannel) {
+        // Calculate gains for right channel
+        rightGain = (pan + 1.0f) * 0.5f;  // 0.0f to 1.0f
+        value *= rightGain;
+    } else {
+        // Calculate gains for left channel
+        leftGain = (1.0f - pan) * 0.5f;   // 0.0f to 1.0f
+        value *= leftGain;
+    }
 
     return value;
 }

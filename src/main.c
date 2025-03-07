@@ -25,7 +25,8 @@ void CalculateBuffer(float *buffer, int bufferSize) {
         }
         sumL = fmin(fmax(sumL, -1.0f), 1.0f);
         sumR = fmin(fmax(sumR, -1.0f), 1.0f);
-        buffer[i] = sumL;
+        buffer[2*i] = sumR; // inverted because raylib uses a different convention
+        buffer[2*i + 1] = sumL;
 
         audio_state.bigFifoBuffer[audio_state.bigFifoBufferIndex] = buffer[i];
         audio_state.bigFifoBufferIndex = (audio_state.bigFifoBufferIndex + 1) % BIG_FIFO_BUFFER_SIZE;
@@ -40,7 +41,7 @@ int AudioThread(void* arg) {
 
     // Thanks microsoft, i could not have had a worse time trying to get this to work :(
 
-    state->buffer = (float*)malloc(BUFFER_SIZE * sizeof(float)); // times 2 because we have 2 channels
+    state->buffer = (float*)malloc(BUFFER_SIZE * 2 * sizeof(float)); // times 2 because we have 2 channels
     state->bigFifoBuffer = (float*)malloc(BIG_FIFO_BUFFER_SIZE * sizeof(float));
     state->smallFifoBuffer = (float*)malloc(SMALL_FIFO_BUFFER_SIZE * sizeof(float));
 
@@ -51,7 +52,7 @@ int AudioThread(void* arg) {
 
     while (state->running) {
         if (state->reset) {
-            memset(state->buffer, 0, sizeof(float) * BUFFER_SIZE); // times 2 because we have 2 channels
+            memset(state->buffer, 0, sizeof(float) * BUFFER_SIZE * 2); // times 2 because we have 2 channels
             state->reset = false;
 
             memset(state->bigFifoBuffer, 0, sizeof(float) * BIG_FIFO_BUFFER_SIZE);
@@ -111,7 +112,7 @@ int main(void) {
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(BUFFER_SIZE);
-    stream = LoadAudioStream(SAMPLE_RATE, 32, 1);
+    stream = LoadAudioStream(SAMPLE_RATE, 32, 2);
     PlayAudioStream(stream);
 
     audio_state = (AudioState) {
@@ -121,17 +122,26 @@ int main(void) {
         .generatorState = generator_init(2048) // cpu issues will probably happen around #500 generators
     };
 
-    for (int i = 0; i < 1; i++){
-        // Add a generator at 80, 160, 320, 640, 1280, 2560, 5120, 10240 Hz with diminishing amplitude
-        generator_add(&audio_state.generatorState, (Generator) {
-            .frequency = 40 * pow(2, i),
-            .phase = 0,
-            .waveform = SINE,
-            .amplitude = 1.0f / (i + 1),
-            .generate = GenerateWaveform,
-            .panning = 0
-        });
-    }
+    // Add a generator at 80 hz, sine wave left pan
+    generator_add(&audio_state.generatorState, (Generator) {
+        .frequency = 80,
+        .phase = 0,
+        .waveform = SINE,
+        .amplitude = 0.5,
+        .generate = GenerateWaveform,
+        .panning = -1
+    });
+
+    // Add a generator at 80 * 4 hz, square wave right pan
+    generator_add(&audio_state.generatorState, (Generator) {
+        .frequency = 80 * 4,
+        .phase = 0,
+        .waveform = SINE,
+        .amplitude = 0.5,
+        .generate = GenerateWaveform,
+        .panning = 1
+    });
+
 
     mtx_init(&audio_state.mutex, mtx_plain);
     audio_state.running = true;
