@@ -97,19 +97,25 @@ void BaseContainer(){
 }
 
 STRING GetTopbarStats() {
-    STRING stats = StringCreate("Memory: ", frame_arena);
+    // Begin long term memory stats (frame arena)
+    STRING stats = StringCreate("Long term memory: ", frame_arena);
     float percentageUsed =
-            percentage_arena_used(frame_arena) * 100; // convert to percentage, and then to string
-    char *percentageString = malloc(10);
+            percentage_arena_used(default_arena) * 100; // convert to percentage, and then to string
+    char *percentageString = arena_alloc(frame_arena, 10);
     snprintf(percentageString, 10, "%f", percentageUsed);
     stats = StringConcat(&stats, percentageString);
     stats = StringConcat(&stats, "%");
+    // End long term memory stats
+
+    // Begin short term memory stats (frame arena)
     stats = StringConcat(&stats, "\n");
-    stats = StringConcat(&stats, "FPS: ");
-    float frametime = 1.0f / GetFrameTime();
-    char *fpsString = malloc(10);
-    snprintf(fpsString, 10, "%f", frametime);
-    stats = StringConcat(&stats, fpsString);
+    stats = StringConcat(&stats, "Short term memory: ");
+    percentageUsed = percentage_arena_used(frame_arena) * 100; // convert to percentage, and then to string
+    snprintf(percentageString, 10, "%f", percentageUsed);
+    stats = StringConcat(&stats, percentageString);
+    stats = StringConcat(&stats, "%");
+    // End short term memory stats
+
     return stats;
 }
 
@@ -133,7 +139,7 @@ void TopBar() {
 
         CLAY({
                  .id = CLAY_ID("TopBarText"), .layout = {.sizing = {CLAY_SIZING_FIT(),
-                                                                    CLAY_SIZING_GROW()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING)},
+                                                                    CLAY_SIZING_GROW()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING), .childAlignment = {CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER}},
              }) {
             CLAY_TEXT(GetString(title.data), CLAY_TEXT_CONFIG(
                     {.textColor = COLOR_SCHEME_TEXT, .fontSize = 32, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
@@ -221,7 +227,7 @@ void generator_edit(int i, Generator generator) {
              }
              }){
             STRING generatorName = StringCreate("Generator ", frame_arena);
-            char *generatorIndex = malloc(10);
+            char *generatorIndex = arena_alloc(frame_arena, 10);
             snprintf(generatorIndex, 10, "%d", i);
             generatorName = StringConcat(&generatorName, generatorIndex);
             CLAY_TEXT(GetString(generatorName.data), CLAY_TEXT_CONFIG(
@@ -232,7 +238,7 @@ void generator_edit(int i, Generator generator) {
                           {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
 
             STRING frequency = StringCreate("Frequency: ", frame_arena);
-            char *frequencyString = malloc(10);
+            char *frequencyString = arena_alloc(frame_arena, 10);
             // 0.00 format
             snprintf(frequencyString, 10, "%.2f", generator.frequency);
             frequency = StringConcat(&frequency, frequencyString);
