@@ -80,23 +80,20 @@ int AudioThread(void* arg) {
     return 0;
 }
 
-void play(void* userdata) {
-    // mark userdata as optional, so the warning dose not show up
-    (void)userdata;
+void play(__unused void* userdata) {
+    // mark userdata as optional, so the warning does not show up
     mtx_lock(&audio_state.mutex);
     audio_state.paused = false;
     mtx_unlock(&audio_state.mutex);
 }
 
-void pauseCallback(void* userdata) {
-    (void)userdata;
+void pauseCallback(__unused void* userdata) {
     mtx_lock(&audio_state.mutex);
     audio_state.paused = true;
     mtx_unlock(&audio_state.mutex);
 }
 
-void stop(void* userdata) {
-    (void)userdata;
+void stop(__unused void* userdata) {
     mtx_lock(&audio_state.mutex);
     audio_state.paused = true;
     audio_state.reset = true;
@@ -108,7 +105,7 @@ int main(void) {
     InitWindow(1920, 1080, "LLDAW");
     SetTargetFPS(240);
 
-    SetWindowState(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED | FLAG_MSAA_4X_HINT);
+    SetWindowState(FLAG_WINDOW_RESIZABLE);
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(BUFFER_SIZE);
@@ -119,7 +116,7 @@ int main(void) {
         .running = true,
         .paused = true,
         .reset = false,
-        .generatorState = generator_init(2048) // cpu issues will probably happen around #500 generators
+        .generatorState = generator_init(64) // cpu issues will probably happen around #500 generators
     };
 
     // Add a generator at 80 hz, sine wave left pan
@@ -153,7 +150,7 @@ int main(void) {
 
     thrd_create(&audio_thread, AudioThread, &audio_state);
 
-    InitUI(1920, 1080);
+    InitUI(GetScreenWidth(), GetScreenHeight());
     SetUIRenderFunction(RenderMainUI);
 
     while (!WindowShouldClose()) {

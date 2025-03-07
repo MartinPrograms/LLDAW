@@ -6,8 +6,6 @@
 #include <raylib.h>
 #include "base_ui.h"
 
-int buttonCount = 0;
-
 void testing(){
     printf("Test\n");
 }
@@ -166,9 +164,9 @@ void TopBar() {
                 SpectrumVisualizer(audio_state.bigFifoBuffer, BIG_FIFO_BUFFER_SIZE);
             }
 
-            CreateButton("Play", nullptr, PlayCallback);
-            CreateButton("Pause", nullptr, PauseCallback);
-            CreateButton("Stop", nullptr, StopCallback);
+            CreateButton("Play", NULL, PlayCallback);
+            CreateButton("Pause", NULL, PauseCallback);
+            CreateButton("Stop", NULL, StopCallback);
 
             CLAY({
                      .id = CLAY_ID("TopBarWaveform"),
@@ -285,54 +283,4 @@ void Root(){
 
 void RenderMainUI(void) {
     Root();
-
-    buttonCount = 0;
-}
-
-void HandleButtonInteraction(Clay_ElementId id, Clay_PointerData data, intptr_t userData){
-    // We will assume userData is the function pointer to the callback
-    ButtonData buttonData = *(ButtonData *)userData;
-    void* user_data = buttonData.userData;
-    void (*callback)(void*) = buttonData.callback;
-
-    if (data.state == CLAY_POINTER_DATA_RELEASED_THIS_FRAME){
-        printf("Button %d was clicked\n", id.id);
-        if ((void *) user_data != NULL){
-            callback((void*)user_data);
-        }else{
-            printf("No callback set for button %d\n", id.id);
-        }
-    }
-}
-
-/// Accepts a lambda function as a callback
-void CreateButton(const char* text, void* userData, void (*callback)(void*)) {
-    buttonCount++;
-    Clay_ElementId id = CLAY_IDI("BUTTON", buttonCount);
-    CLAY({
-             .id = (id), .layout = {.sizing = {CLAY_SIZING_FIT(),
-                                               CLAY_SIZING_FIT()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING)},
-             .backgroundColor = COLOR_SCHEME_BUTTON,
-             .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
-         }) {
-        ButtonData data;
-        data.text = text;
-        data.userData = userData;
-        data.callback = callback;
-        Clay_OnHover(HandleButtonInteraction, (intptr_t)&data);
-        CLAY({
-                 .id = CLAY_ID_LOCAL("ButtonText"), .layout = {.sizing = {CLAY_SIZING_GROW(),
-                                                                          CLAY_SIZING_GROW()},
-                    .padding = CLAY_PADDING_ALL(STANDARD_PADDING)},
-             }) {
-            CLAY_TEXT(GetString(text), CLAY_TEXT_CONFIG(
-                    {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
-        }
-    }
-}
-
-Clay_String GetString(const char *string) {
-    Clay_String result;
-    result = (CLAY__INIT(Clay_String){.length=strlen(string), .chars=(string)});
-    return result;
 }

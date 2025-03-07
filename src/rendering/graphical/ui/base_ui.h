@@ -6,8 +6,5 @@
 #include "ui_settings.h"
 
 void RenderMainUI();
-void CreateButton(const char *text, void* userData, void (*callback)(void*));
-
-Clay_String GetString(const char *string);
 
 #endif // BASE_UI_H
