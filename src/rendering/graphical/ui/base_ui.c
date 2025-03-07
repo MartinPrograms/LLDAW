@@ -167,7 +167,9 @@ void TopBar() {
                      .backgroundColor = COLOR_SCHEME_BACKGROUND_DARK,
                      .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
                  }){
-                SpectrumVisualizer(audio_state.bigFifoBuffer, BIG_FIFO_BUFFER_SIZE);
+                float* corrected = fifo_audio_to_normal(audio_state.audio_buffers.big_fifo_buffer, frame_arena);
+
+                SpectrumVisualizer(corrected, BIG_FIFO_BUFFER_SIZE);
             }
 
             CreateButton("Play", NULL, PlayCallback);
@@ -186,8 +188,9 @@ void TopBar() {
                      .backgroundColor = COLOR_SCHEME_BACKGROUND_DARK,
                      .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
                  }){
+                float* corrected = fifo_audio_to_normal(audio_state.audio_buffers.fifo_buffer, frame_arena);
 
-                WaveformVisualizer(audio_state.smallFifoBuffer, SMALL_FIFO_BUFFER_SIZE);
+                WaveformVisualizer(corrected, SMALL_FIFO_BUFFER_SIZE);
             }
         }
 
@@ -263,8 +266,8 @@ void BottomBar(){
              .scroll = {true, false} // horizontal scroll
          }) {
 
-        for(int i = 0; i < audio_state.generatorState.generatorCount; i++){
-            Generator generator = audio_state.generatorState.generators[i];
+        for(int i = 0; i < audio_state.generator_state.generatorCount; i++){
+            Generator generator = audio_state.generator_state.generators[i];
             generator_edit(i, generator);
         }
     }

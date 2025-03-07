@@ -3,6 +3,7 @@
 #include "ui_settings.h"
 #include "custom.h"
 #include "../../../helpers/include.h"
+#include "../../../helpers/basic/definitions.h"
 
 int CustomComponentIndex = 0;
 void WaveformVisualizer(const float *buffer, int bufferSize) {

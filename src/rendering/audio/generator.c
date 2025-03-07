@@ -2,8 +2,8 @@
 #include <raylib.h>
 #include <stdlib.h>
 #include "generator.h"
-
 #include "audio_state.h"
+#include "../../src/helpers/audio/audio_math.h"
 
 GeneratorState generator_init(int capacity) {
     GeneratorState state = {
@@ -80,17 +80,7 @@ float GenerateWaveform(void* generator_void, bool  rightChannel, bool advancePha
 
     // Apply panning (0 is center, -1 is left, 1 is right)
     const float pan = generator->panning;  // pan range: -1.0f (left) to 1.0f (right)
-    float leftGain, rightGain;
-
-    if (rightChannel) {
-        // Calculate gains for right channel
-        rightGain = (pan + 1.0f) * 0.5f;  // 0.0f to 1.0f
-        value *= rightGain;
-    } else {
-        // Calculate gains for left channel
-        leftGain = (1.0f - pan) * 0.5f;   // 0.0f to 1.0f
-        value *= leftGain;
-    }
+    value = panning(value, pan, rightChannel);
 
     return value;
 }
