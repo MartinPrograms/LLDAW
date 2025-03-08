@@ -55,17 +55,18 @@ void SpectrumDraw(const float* buffer, int bufferSize, Color color, float width,
     // --- Compute Magnitudes and Normalize ---
     int halfSize = fftSize / 2;
     float magnitudes[halfSize + 1];
-    float maxMagnitude = 0.0f;
+    float maxMagnitude = 25;
     for (int i = 0; i <= halfSize; i++) {
         magnitudes[i] = sqrtf(fftOutput[i].r * fftOutput[i].r + fftOutput[i].i * fftOutput[i].i);
-        if (magnitudes[i] > maxMagnitude) {
+
+        if (magnitudes[i] > maxMagnitude && magnitudes[i] > 25) { // Prevent drawing noise
             maxMagnitude = magnitudes[i];
         }
     }
-    if (maxMagnitude > 0) {
-        for (int i = 0; i <= halfSize; i++) {
-            magnitudes[i] /= maxMagnitude;
-        }
+
+    // Normalize magnitudes
+    for (int i = 0; i <= halfSize; i++) {
+        magnitudes[i] /= maxMagnitude;
     }
 
     // --- Draw Vertical Lines with Logarithmic Frequency Mapping ---

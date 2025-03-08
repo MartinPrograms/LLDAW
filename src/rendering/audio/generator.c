@@ -232,10 +232,10 @@ float GenerateWaveform(void* generator_void, bool  rightChannel, bool advancePha
 
 AdsrEnvelope adsr_envelope_basic() {
     AdsrEnvelope envelope = {
-            .attack = 0.07f,
-            .decay = 0.9f,
-            .sustain = 0.4f,
-            .release = 0.2f
+            .attack = 0.1f,
+            .decay = 0.0f,
+            .sustain = 1.f,
+            .release = 0.1f
     };
 
     return envelope;
