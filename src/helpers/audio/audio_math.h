@@ -73,6 +73,10 @@ static inline float time_from_samples(int64_t samples, float sampleRate) {
     return (float)samples / sampleRate;
 }
 
+static inline float midi_note_to_frequency(int note) {
+    return 440.0f * powf(2.0f, (note - 69) / 12.0f); // TODO: add tuning
+}
+
 #undef timespec
 
 static inline struct timespec get_time_now() { // sure i guess this isnt audio but whatever

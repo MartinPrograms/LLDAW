@@ -1,5 +1,7 @@
 #include "audio_processor.h"
 
+#include "midi_processor.h"
+#include "midi_state.h"
 #include "../../helpers/audio/audio_math.h"
 
 void CalculateBuffer(float *buffer, int bufferSize) {
@@ -9,14 +11,20 @@ void CalculateBuffer(float *buffer, int bufferSize) {
 
         for (int j = 0; j < audio_state.generator_state.generatorCount; j++) {
             Generator *generator = &audio_state.generator_state.generators[j];
+
+            if (j == 0 && midi_state.enabled) {
+                PmEvent event[4];
+                int readout = 0;
+                MidiMessage* messages = midi_processor_process(event, 4, &readout, buffer_arena);
+                for (int k = 0; k < readout; k++) {
+                    // Set the velocity for the first generator to the velocity of the midi message. The midi message's velocity is 0-127, so we need to normalize it to 0-1
+                    generator->amplitude = (float)messages[k].data2 / 127.0f;
+                    generator->frequency = midi_note_to_frequency((int)messages[k].data1);
+                }
+            }
+
             sumL += generator->generate(generator, true, false);
             sumR += generator->generate(generator, false, true); // we advance the phase here!
-
-            // Oscilate the frequency around 440 hz based on time, between 300 and 500 hz. Every 10 seconds it should make a full cycle.
-            generator->frequency = 400 + 100 * sinf(2 * PI * 0.1 * time_from_samples(audio_state.sample_number, SAMPLE_RATE));
-
-            // Do the same for the panning but with a different frequency
-            generator->panning = sinf(2 * PI * 0.2 * time_from_samples(audio_state.sample_number, SAMPLE_RATE)); // between -1 and 1
         }
 
         sumL = sumL * audio_state.master_volume; // doing this here, to prevent it from going over 1.0
@@ -138,7 +146,10 @@ int AudioProcessingThread(void *arg) {
 
         // I'm using auto because struct timespec is a type that has been overwritten by a macro, and this is an easy way to avoid it.
         auto start = get_time_now();
+
+        arena_reset(buffer_arena); // Clear the buffer arena (remove old midi messages)
         CalculateBuffer(state->audio_buffers.buffers[state->audio_buffers.buffer_index].buffer, BUFFER_SIZE);
+
         auto end = get_time_now();
 
         double now = time_in_seconds(end);
@@ -211,6 +222,9 @@ void InitAudio() {
     PlayCallback = play;
     PauseCallback = pauseCallback;
     StopCallback = stop;
+
+    // Just before launching the audio threads, create midi input
+    midi_processor_init(true);
 
     // Create threads for playback and processing
     thrd_create(&audio_playback_thread, AudioPlaybackThread, &audio_state);

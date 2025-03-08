@@ -16,6 +16,7 @@
 
 extern ARENA* default_arena;
 extern ARENA* frame_arena;
+extern ARENA* buffer_arena; // This one's for the audio buffers
 
 static inline void Init(size_t capacity) {
     // If it's macOS/linux we need to change the console mode to allow reading a single key
@@ -40,12 +41,14 @@ static inline void Init(size_t capacity) {
 
     default_arena = arena_create(capacity);
     frame_arena = arena_create(capacity); // This one is reset every frame (think text rendering)
+    buffer_arena = arena_create(capacity); // This one is for the audio buffers
 }
 
 static inline void Destroy() {
     // First destroy the default arena
     arena_destroy(default_arena);
     arena_destroy(frame_arena);
+    arena_destroy(default_arena);
 
     // Now if it's macOS/linux we need to reset the console mode
     #if defined(__APPLE__) || defined(__linux__)

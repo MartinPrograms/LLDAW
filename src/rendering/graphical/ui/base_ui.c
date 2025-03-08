@@ -99,44 +99,27 @@ void BaseContainer(){
 }
 
 STRING GetTopbarStats() {
-    // Begin long term memory stats (frame arena)
-    STRING stats = StringCreate("Long term memory: ", frame_arena);
-    float percentageUsed =
-            percentage_arena_used(default_arena) * 100; // convert to percentage, and then to string
-    char *percentageString = arena_alloc(frame_arena, 10);
-    snprintf(percentageString, 10, "%.2f", percentageUsed);
-    stats = StringConcat(&stats, percentageString);
+    // Begin memory stats:
+    STRING stats = StringCreate("LTM: ", frame_arena);
+    char *ltmString = arena_alloc(frame_arena, 10);
+    snprintf(ltmString, 10, "%.2f", percentage_arena_used(default_arena) * 100);
+    stats = StringConcat(&stats, ltmString);
     stats = StringConcat(&stats, "%");
-    // Add (usage/total) in mb
-    stats = StringConcat(&stats, " (");
-    char *usageString = arena_alloc(frame_arena, 10);
-    snprintf(usageString, 10, "%.2f", (float) bytes_to_measurement(default_arena->offset, MB));
-    stats = StringConcat(&stats, usageString);
-    stats = StringConcat(&stats, "/");
-    char *totalString = arena_alloc(frame_arena, 10);
-    snprintf(totalString, 10, "%.2f", (float) bytes_to_measurement(default_arena->capacity, MB));
-    stats = StringConcat(&stats, totalString);
-    stats = StringConcat(&stats, "MB)");
 
-    // End long term memory stats
-
-    // Begin short term memory stats (frame arena)
-    stats = StringConcat(&stats, "\n");
-    stats = StringConcat(&stats, "Short term memory: ");
-    percentageUsed = percentage_arena_used(frame_arena) * 100; // convert to percentage, and then to string
-    snprintf(percentageString, 10, "%.2f", percentageUsed);
-    stats = StringConcat(&stats, percentageString);
+    // Now instead of adding a new line, i wanna save some space, so for STM (short term memory) stats and ABM (audio buffer memory) stats, I'll just add a space
+    stats = StringConcat(&stats, " ");
+    stats = StringConcat(&stats, "STM: ");
+    char *stmString = arena_alloc(frame_arena, 10);
+    snprintf(stmString, 10, "%.2f", percentage_arena_used(frame_arena) * 100);
+    stats = StringConcat(&stats, stmString);
     stats = StringConcat(&stats, "%");
-    // Add (usage/total) in mb
-    stats = StringConcat(&stats, " (");
-    snprintf(usageString, 10, "%.2f", (float) bytes_to_measurement(frame_arena->offset, MB));
-    stats = StringConcat(&stats, usageString);
-    stats = StringConcat(&stats, "/");
-    snprintf(totalString, 10, "%.2f", (float) bytes_to_measurement(frame_arena->capacity, MB));
-    stats = StringConcat(&stats, totalString);
-    stats = StringConcat(&stats, "MB)");
 
-    // End short term memory stats
+    stats = StringConcat(&stats, " ");
+    stats = StringConcat(&stats, "ABM: ");
+    char *abmString = arena_alloc(frame_arena, 10);
+    snprintf(abmString, 10, "%.2f", percentage_arena_used(buffer_arena) * 100);
+    stats = StringConcat(&stats, abmString);
+    stats = StringConcat(&stats, "%");
 
     // Begin buffer index stat (audio state)
     stats = StringConcat(&stats, "\n");
@@ -317,6 +300,14 @@ void generator_edit(int i, Generator generator) {
             snprintf(panningString, 10, "%.2f", generator.panning);
             panning = StringConcat(&panning, panningString);
             CLAY_TEXT(GetString(panning.data), CLAY_TEXT_CONFIG(
+                          {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
+
+            STRING amplitude = StringCreate("Amplitude [0, 1]: ", frame_arena);
+            char *amplitudeString = arena_alloc(frame_arena, 10);
+            // 0.00 format
+            snprintf(amplitudeString, 10, "%.2f", generator.amplitude);
+            amplitude = StringConcat(&amplitude, amplitudeString);
+            CLAY_TEXT(GetString(amplitude.data), CLAY_TEXT_CONFIG(
                           {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
         }
     }

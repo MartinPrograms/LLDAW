@@ -3,6 +3,7 @@
 
 ARENA* default_arena = NULL;
 ARENA* frame_arena = NULL;
+ARENA* buffer_arena = NULL;
 
 ARENA *arena_create(size_t capacity) {
     ARENA *arena = (ARENA *)malloc(sizeof(ARENA));
