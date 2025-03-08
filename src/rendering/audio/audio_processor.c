@@ -9,17 +9,24 @@ void CalculateBuffer(float *buffer, int bufferSize) {
         float sumL = 0;
         float sumR = 0;
 
+        PmEvent event[4];
+        int readout = 0;
+        MidiMessage* messages = midi_processor_process(event, 4, &readout, buffer_arena);
+
         for (int j = 0; j < audio_state.generator_state.generatorCount; j++) {
             Generator *generator = &audio_state.generator_state.generators[j];
 
-            if (j == 0 && midi_state.enabled) {
-                PmEvent event[4];
-                int readout = 0;
-                MidiMessage* messages = midi_processor_process(event, 4, &readout, buffer_arena);
+            if (midi_state.enabled) {
                 for (int k = 0; k < readout; k++) {
-                    // Set the velocity for the first generator to the velocity of the midi message. The midi message's velocity is 0-127, so we need to normalize it to 0-1
-                    generator->amplitude = (float)messages[k].data2 / 127.0f;
-                    generator->frequency = midi_note_to_frequency((int)messages[k].data1);
+                    if (messages[k].status == 144){ // The status 144 is a note on message
+                        // Set the velocity for the first generator to the velocity of the midi message. The midi message's velocity is 0-127, so we need to normalize it to 0-1
+                        float amp = (float)messages[k].data2 / 127.0f;
+                        float freq = midi_note_to_frequency((int)messages[k].data1);
+                        bool remove = messages[k].data2 == 0; // If the velocity is 0, we remove the voice (cant use the amp as it is a floating point number, causes some weird bugs)
+
+                        // Now we call the generator_voice function to generate the sound
+                        generator_voice_process((int)messages[k].data1, freq, amp, remove, generator); // the note number is the frequency, and also the index of the voice (kind of, whatever)
+                    }
                 }
             }
 
@@ -206,7 +213,7 @@ void InitAudio() {
     generator_add(&audio_state.generator_state, (Generator) {
         .frequency = 220,
         .phase = 0,
-        .waveform = TRIANGLE,
+        .waveform = SINE,
         .amplitude = 0.5,
         .generate = GenerateWaveform,
         .panning = 0
