@@ -24,7 +24,7 @@ GeneratorState generator_init(int capacity) {
 
 void generator_add(GeneratorState *state, Generator generator) {
     if (state->generatorCount < state->generatorCapacity) {
-        int size = 64; // 64 voices per generator
+        int size = 16; // 16 voices per generator
         generator.voices = (VoiceStack) {
                 .voices = (Voice *)arena_alloc(default_arena, size * sizeof(Voice)),
                 .deactivatedVoices = (Voice *)arena_alloc(default_arena, size * sizeof(Voice)),
@@ -240,7 +240,8 @@ void generate_voice(bool rightChannel, bool advancePhase, Generator *generator, 
             voice->phase[i] = currentPhase;
         }
         // Normalize the summed output.
-        output = unisonSum / (float)unisonCount;    } else {
+        output = unisonSum / (float)unisonCount;
+    } else {
         generate_waveform(generator, mainPhase, amplitude, &output);
         // Apply main voice panning for non-unison case
         output = panning(output, voice->panning, rightChannel);

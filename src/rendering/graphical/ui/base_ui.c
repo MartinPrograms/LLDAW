@@ -233,7 +233,7 @@ void TopBar() {
                  }){
 
                 float* corrected = fifo_audio_to_normal(audio_state.audio_buffers.fifo_buffer, frame_arena);
-                float* mono = mono_from_stereo(corrected, SMALL_FIFO_BUFFER_SIZE, 2, frame_arena); // Going from 2 channels to 1 (2, because thats mono)
+                float* mono = mono_from_stereo(corrected, SMALL_FIFO_BUFFER_SIZE, 0, frame_arena); // Going from 2 channels to 1 (2, because thats mono)
 
                 WaveformVisualizer(mono, SMALL_FIFO_BUFFER_SIZE);
             }
