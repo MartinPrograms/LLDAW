@@ -1,6 +1,8 @@
 #ifndef GENERATOR_H
 #define GENERATOR_H
 
+#include <stdint.h>
+
 #include "../../helpers/basic/arena.h"
 
 // This is a simple audio generator that generates a sine wave at a given frequency. Think of it as a very very *very* simple synthesizer. No ADSR, no filters, no effects, just a wave of your choice, with a frequency of your choice.
@@ -20,34 +22,47 @@ typedef struct {
     float panning;
     float phase;
     int note;
+    int64_t startSample;
+    int64_t endSample;
+    bool active; // The moment active is false, the release phase starts
+    bool remove; // The moment remove is true, the voice is removed from the stack
 } Voice;
 
 typedef struct {
     Voice* voices;
+    Voice* deactivatedVoices;
     int voiceCount;
+    int deactivatedVoiceCount;
     int maxVoices;
     bool monophonic;
 } VoiceStack;
 
 typedef struct {
+    float attack;
+    float decay;
+    float sustain;
+    float release;
+} AdsrEnvelope; // Attack, Decay, Sustain, Release
+
+typedef struct {
     /// Master frequency of the generator
     float frequency;
-
     /// Phase of the generator
     float phase;
+    /// Waveform of the generator
     Waveform waveform;
+    /// Envelope of the generator
+    AdsrEnvelope envelope;
+    /// Master volume/amplitude of the generator
+    float amplitude; // [-1, 1] (inverting polarity is an option)
+    /// Master panning of the generator
+    float panning; // [-1, 1] -1 is left, 1 is right
 
     /// Voice stack (to be used for polyphony) (DO **NOT** ASSIGN TO THIS DIRECTLY)
     VoiceStack voices;
 
-    /// Master volume/amplitude of the generator
-    float amplitude; // [-1, 1] (inverting polarity is an option)
-
     /// Function to handle the generation of the waveform
     float (*generate)(void*, bool, bool); // Function pointer to the generate function
-
-    /// Panning of the generator
-    float panning; // [-1, 1] -1 is left, 1 is right
 } Generator;
 
 typedef struct {
@@ -62,9 +77,14 @@ void generator_add(GeneratorState* state, Generator generator);
 void generator_remove(GeneratorState* state, int index);
 void generator_free(GeneratorState* state);
 
-void generator_voice_process(int note, float frequency, float amplitude, bool remove, Generator* generator);
+void generator_voice_process(int note, float frequency, float amplitude, bool deactivate, Generator* generator);
 void generator_voice_remove(int note, Generator* generator);
+void generator_voice_deactivate(int note, Generator* generator);
+void generator_voice_cleanse(Generator* generator);
 
 float GenerateWaveform(void* generator, bool rightChannel, bool advancePhase);
+
+AdsrEnvelope adsr_envelope_basic(); // A basic ADSR envelope
+float adsr_envelope_apply(float value, int64_t current_sample, int64_t start_sample, int64_t end_sample, const AdsrEnvelope envelope, bool ended, float sampleRate, bool* remove);
 
 #endif

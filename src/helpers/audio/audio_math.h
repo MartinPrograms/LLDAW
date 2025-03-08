@@ -73,6 +73,11 @@ static inline float time_from_samples(int64_t samples, float sampleRate) {
     return (float)samples / sampleRate;
 }
 
+/// Function to return samples from time (in seconds), given the sample rate
+static inline int64_t samples_from_time(float time, float sampleRate) {
+    return (int64_t)(time * sampleRate);
+}
+
 static inline float midi_note_to_frequency(int note) {
     return 440.0f * powf(2.0f, (note - 69) / 12.0f); // TODO: add tuning
 }

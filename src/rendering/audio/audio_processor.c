@@ -213,10 +213,11 @@ void InitAudio() {
     generator_add(&audio_state.generator_state, (Generator) {
         .frequency = 220,
         .phase = 0,
-        .waveform = SINE,
-        .amplitude = 0.5,
+        .waveform = SAWTOOTH,
+        .amplitude = 1,
         .generate = GenerateWaveform,
-        .panning = 0
+        .panning = 0,
+        .envelope = adsr_envelope_basic()
     });
 
     // Initialize synchronization primitives
