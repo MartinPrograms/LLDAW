@@ -6,6 +6,8 @@
 #include <raylib.h>
 #include "base_ui.h"
 
+#include "../../../helpers/audio/audio_math.h"
+
 void testing(){
     printf("Test\n");
 }
@@ -82,7 +84,7 @@ void BaseContainer(){
              .id = CLAY_ID("BaseContainer"),
              .layout = {
                 .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_GROW()},
-                .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                .padding = CLAY_PADDING_ALL(0),
                 .childGap = STANDARD_GAP,
                 .layoutDirection = CLAY_LEFT_TO_RIGHT
         },
@@ -102,19 +104,72 @@ STRING GetTopbarStats() {
     float percentageUsed =
             percentage_arena_used(default_arena) * 100; // convert to percentage, and then to string
     char *percentageString = arena_alloc(frame_arena, 10);
-    snprintf(percentageString, 10, "%f", percentageUsed);
+    snprintf(percentageString, 10, "%.2f", percentageUsed);
     stats = StringConcat(&stats, percentageString);
     stats = StringConcat(&stats, "%");
+    // Add (usage/total) in mb
+    stats = StringConcat(&stats, " (");
+    char *usageString = arena_alloc(frame_arena, 10);
+    snprintf(usageString, 10, "%.2f", (float) bytes_to_measurement(default_arena->offset, MB));
+    stats = StringConcat(&stats, usageString);
+    stats = StringConcat(&stats, "/");
+    char *totalString = arena_alloc(frame_arena, 10);
+    snprintf(totalString, 10, "%.2f", (float) bytes_to_measurement(default_arena->capacity, MB));
+    stats = StringConcat(&stats, totalString);
+    stats = StringConcat(&stats, "MB)");
+
     // End long term memory stats
 
     // Begin short term memory stats (frame arena)
     stats = StringConcat(&stats, "\n");
     stats = StringConcat(&stats, "Short term memory: ");
     percentageUsed = percentage_arena_used(frame_arena) * 100; // convert to percentage, and then to string
-    snprintf(percentageString, 10, "%f", percentageUsed);
+    snprintf(percentageString, 10, "%.2f", percentageUsed);
     stats = StringConcat(&stats, percentageString);
     stats = StringConcat(&stats, "%");
+    // Add (usage/total) in mb
+    stats = StringConcat(&stats, " (");
+    snprintf(usageString, 10, "%.2f", (float) bytes_to_measurement(frame_arena->offset, MB));
+    stats = StringConcat(&stats, usageString);
+    stats = StringConcat(&stats, "/");
+    snprintf(totalString, 10, "%.2f", (float) bytes_to_measurement(frame_arena->capacity, MB));
+    stats = StringConcat(&stats, totalString);
+    stats = StringConcat(&stats, "MB)");
+
     // End short term memory stats
+
+    // Begin buffer index stat (audio state)
+    stats = StringConcat(&stats, "\n");
+    stats = StringConcat(&stats, "Buffer index: ");
+    char *bufferIndexString = arena_alloc(frame_arena, 10);
+    snprintf(bufferIndexString, 10, "%d", audio_state.audio_buffers.buffer_index);
+    stats = StringConcat(&stats, bufferIndexString);
+
+    if (audio_state.audio_buffers.buffer_index >= AUDIO_BUFFER_COUNT) {
+        // This means it's full and waiting, append (waiting)
+        stats = StringConcat(&stats, " (waiting)");
+    }else
+    if (audio_state.audio_buffers.buffer_index <= 0) {
+        // This is an underrun, append (underrun)
+        stats = StringConcat(&stats, " (underrun)");
+    }else {
+        // Its currently rendering, append (rendering)
+        stats = StringConcat(&stats, " (rendering)");
+    }
+
+    if (audio_state.paused) {
+        // This means it's paused, append (paused)
+        stats = StringConcat(&stats, " (paused)");
+    }
+
+    // Append the buffer render time as (time: x)
+    stats = StringConcat(&stats, " (");
+    char *timeString = arena_alloc(frame_arena, 10);
+    snprintf(timeString, 10, "%.2f", audio_state.time_to_render_buffer * 1000);
+    stats = StringConcat(&stats, timeString);
+    stats = StringConcat(&stats, "ms)");
+
+    // End buffer index stat
 
     return stats;
 }
@@ -139,7 +194,10 @@ void TopBar() {
 
         CLAY({
                  .id = CLAY_ID("TopBarText"), .layout = {.sizing = {CLAY_SIZING_FIT(),
-                                                                    CLAY_SIZING_GROW()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING), .childAlignment = {CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER}},
+                                                                    CLAY_SIZING_GROW()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                     .childAlignment = {CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER}},
+            .backgroundColor = COLOR_SCHEME_BACKGROUND_DARK,
+            .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
              }) {
             CLAY_TEXT(GetString(title.data), CLAY_TEXT_CONFIG(
                     {.textColor = COLOR_SCHEME_TEXT, .fontSize = 32, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
@@ -152,9 +210,13 @@ void TopBar() {
                     .padding = CLAY_PADDING_ALL(0),
                     .childGap = STANDARD_GAP,
                     .layoutDirection = CLAY_LEFT_TO_RIGHT,
-                    .childAlignment = {CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER}
+                    .childAlignment = {CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER}
             }
              }) {
+            CreateButton("Play", NULL, PlayCallback);
+            CreateButton("Pause", NULL, PauseCallback);
+            CreateButton("Stop", NULL, StopCallback);
+
             CLAY({
                      .id = CLAY_ID("TopBarSpectrum"),
                      .layout = {
@@ -167,14 +229,12 @@ void TopBar() {
                      .backgroundColor = COLOR_SCHEME_BACKGROUND_DARK,
                      .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
                  }){
+
                 float* corrected = fifo_audio_to_normal(audio_state.audio_buffers.big_fifo_buffer, frame_arena);
+                float* mono = mono_from_stereo(corrected, BIG_FIFO_BUFFER_SIZE, 0, frame_arena); // Going from 2 channels to 1
 
-                SpectrumVisualizer(corrected, BIG_FIFO_BUFFER_SIZE);
+                SpectrumVisualizer(mono, BIG_FIFO_BUFFER_SIZE);
             }
-
-            CreateButton("Play", NULL, PlayCallback);
-            CreateButton("Pause", NULL, PauseCallback);
-            CreateButton("Stop", NULL, StopCallback);
 
             CLAY({
                      .id = CLAY_ID("TopBarWaveform"),
@@ -188,16 +248,18 @@ void TopBar() {
                      .backgroundColor = COLOR_SCHEME_BACKGROUND_DARK,
                      .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
                  }){
-                float* corrected = fifo_audio_to_normal(audio_state.audio_buffers.fifo_buffer, frame_arena);
 
-                WaveformVisualizer(corrected, SMALL_FIFO_BUFFER_SIZE);
+                float* corrected = fifo_audio_to_normal(audio_state.audio_buffers.fifo_buffer, frame_arena);
+                float* mono = mono_from_stereo(corrected, SMALL_FIFO_BUFFER_SIZE, 2, frame_arena); // Going from 2 channels to 1 (2, because thats mono)
+
+                WaveformVisualizer(mono, SMALL_FIFO_BUFFER_SIZE);
             }
         }
 
         CLAY({
-                 .id = CLAY_ID("TopBarStats"), .layout = {.sizing = {CLAY_SIZING_FIT(),
-                                                                     CLAY_SIZING_GROW()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
-                    .layoutDirection = CLAY_TOP_TO_BOTTOM},
+                 .id = CLAY_ID("TopBarStats"), .layout = {.sizing = {CLAY_SIZING_FIXED(300),
+                                                                     CLAY_SIZING_GROW()}, .padding = CLAY_PADDING_ALL(0),
+                    .layoutDirection = CLAY_TOP_TO_BOTTOM, .childAlignment = {CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER}}
              }) {
 
             STRING stats = GetTopbarStats();
@@ -247,6 +309,14 @@ void generator_edit(int i, Generator generator) {
             frequency = StringConcat(&frequency, frequencyString);
             frequency = StringConcat(&frequency, "hz");
             CLAY_TEXT(GetString(frequency.data), CLAY_TEXT_CONFIG(
+                          {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
+
+            STRING panning = StringCreate("Panning [-1, 1]: ", frame_arena);
+            char *panningString = arena_alloc(frame_arena, 10);
+            // 0.00 format
+            snprintf(panningString, 10, "%.2f", generator.panning);
+            panning = StringConcat(&panning, panningString);
+            CLAY_TEXT(GetString(panning.data), CLAY_TEXT_CONFIG(
                           {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
         }
     }

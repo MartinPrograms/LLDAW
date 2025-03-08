@@ -11,6 +11,12 @@ void CalculateBuffer(float *buffer, int bufferSize) {
             Generator *generator = &audio_state.generator_state.generators[j];
             sumL += generator->generate(generator, true, false);
             sumR += generator->generate(generator, false, true); // we advance the phase here!
+
+            // Oscilate the frequency around 440 hz based on time, between 300 and 500 hz. Every 10 seconds it should make a full cycle.
+            generator->frequency = 400 + 100 * sinf(2 * PI * 0.1 * time_from_samples(audio_state.sample_number, SAMPLE_RATE));
+
+            // Do the same for the panning but with a different frequency
+            generator->panning = sinf(2 * PI * 0.2 * time_from_samples(audio_state.sample_number, SAMPLE_RATE)); // between -1 and 1
         }
 
         sumL = sumL * audio_state.master_volume; // doing this here, to prevent it from going over 1.0
@@ -24,28 +30,30 @@ void CalculateBuffer(float *buffer, int bufferSize) {
 
         buffer[i * 2] = sumL;
         buffer[i * 2 + 1] = sumR;
+
+        audio_state.sample_number += 1;
     }
 }
 
-void create_buffers(AudioState *state) {
+void create_buffers(AudioState *state, ARENA* arena) {
     state->audio_buffers = (AudioBuffers){0};
 
-    state->audio_buffers.main_buffer.buffer = (float*)malloc(BUFFER_SIZE * 2 * sizeof(float)); // times 2 because we have 2 channels
+    state->audio_buffers.main_buffer.buffer = (float*)arena_alloc(arena,BUFFER_SIZE * 2 * sizeof(float)); // times 2 because we have 2 channels
     state->audio_buffers.main_buffer.buffer_size = BUFFER_SIZE * 2;
 
     state->audio_buffers.buffers = (AudioBuffer*)malloc(AUDIO_BUFFER_COUNT * sizeof(AudioBuffer));
     for (int i = 0; i < AUDIO_BUFFER_COUNT; i++) {
-        state->audio_buffers.buffers[i].buffer = (float*)malloc(BUFFER_SIZE * 2 * sizeof(float)); // times 2 because we have 2 channels
+        state->audio_buffers.buffers[i].buffer = (float*)arena_alloc(arena,BUFFER_SIZE * 2 * sizeof(float)); // times 2 because we have 2 channels
         state->audio_buffers.buffers[i].buffer_size = BUFFER_SIZE * 2;
     }
 
-    state->audio_buffers.fifo_buffer.buffer = (float*)malloc(BUFFER_SIZE * 2 * sizeof(float)); // times 2 because we have 2 channels
+    state->audio_buffers.fifo_buffer.buffer = (float*)arena_alloc(arena,BUFFER_SIZE * 2 * sizeof(float)); // times 2 because we have 2 channels
     state->audio_buffers.fifo_buffer.buffer_size = BUFFER_SIZE * 2;
     state->audio_buffers.fifo_buffer.buffer_index = 0;
     state->audio_buffers.fifo_buffer.tail = 0;
     state->audio_buffers.fifo_buffer.head = 0;
 
-    state->audio_buffers.big_fifo_buffer.buffer = (float*)malloc(BIG_FIFO_BUFFER_SIZE * 2 * sizeof(float)); // times 2 because we have 2 channels
+    state->audio_buffers.big_fifo_buffer.buffer = (float*)arena_alloc(arena,BIG_FIFO_BUFFER_SIZE * 2 * sizeof(float)); // times 2 because we have 2 channels
     state->audio_buffers.big_fifo_buffer.buffer_size = BIG_FIFO_BUFFER_SIZE * 2;
     state->audio_buffers.big_fifo_buffer.buffer_index = 0;
     state->audio_buffers.big_fifo_buffer.tail = 0;
@@ -58,150 +66,156 @@ void create_buffers(AudioState *state) {
 }
 
 void update_audio_stream(AudioState *state) {
-    // Lock the processing mutex
     mtx_lock(&state->processing_mutex);
+    // Copy the buffer and adjust indices under mutex protection
+    memcpy(state->audio_buffers.main_buffer.buffer, state->audio_buffers.buffers[0].buffer, state->audio_buffers.buffers[0].buffer_size * sizeof(float));
 
-    // Copy over the buffer[0] to the main buffer
-    memcpy(state->audio_buffers.main_buffer.buffer, state->audio_buffers.buffers[0].buffer, BUFFER_SIZE * 2 * sizeof(float));
-
-    // Now shift all the buffers
     for (int i = 0; i < AUDIO_BUFFER_COUNT - 1; i++) {
-        memcpy(state->audio_buffers.buffers[i].buffer, state->audio_buffers.buffers[i + 1].buffer, BUFFER_SIZE * 2 * sizeof(float));
+        memcpy(state->audio_buffers.buffers[i].buffer, state->audio_buffers.buffers[i + 1].buffer, state->audio_buffers.buffers[i].buffer_size * sizeof(float));
     }
 
-    // Decrement the buffer index
     state->audio_buffers.buffer_index--;
+    if (state->audio_buffers.buffer_index < 0) {
+        state->audio_buffers.buffer_index = 0;
+        printf("Buffer underrun...\n");
+    }
 
-    // Now we unlock the mutex, this is so uhhh something something idfkk prevents clicks
     mtx_unlock(&state->processing_mutex);
 
-    // Copy the buffer from the main buffer to the audio stream
     UpdateAudioStream(stream, state->audio_buffers.main_buffer.buffer, BUFFER_SIZE);
 
-    // Also update the fifo buffers
+    // Add the updated buffer to both fifo buffers
     fifo_audio_write(&state->audio_buffers.fifo_buffer, state->audio_buffers.main_buffer.buffer, BUFFER_SIZE * 2);
     fifo_audio_write(&state->audio_buffers.big_fifo_buffer, state->audio_buffers.main_buffer.buffer, BUFFER_SIZE * 2);
-
-    printf("swapped buffer\n");
 }
 
 int AudioPlaybackThread(void* arg) {
     AudioState* state = (AudioState*)arg;
-
     while (state->running) {
-
-        if (state->paused) {
-            continue;
+        mtx_lock(&state->processing_mutex);
+        while (state->paused && state->running) {
+            cnd_wait(&state->resume_playback_cnd, &state->processing_mutex);
         }
-
-        mtx_lock(&state->playback_mutex);
+        mtx_unlock(&state->processing_mutex);
 
         if (IsAudioStreamProcessed(stream)) {
             update_audio_stream(state);
         }
-
-        mtx_unlock(&state->playback_mutex);
     }
+
     return 0;
 }
 
 void reset_audiobuffers(void) {
-    // Lock the processing mutex, and reset the buffer index
     mtx_lock(&audio_state.processing_mutex);
+    // Clear all buffers to silence
+    for (int i = 0; i < AUDIO_BUFFER_COUNT; i++) {
+        memset(audio_state.audio_buffers.buffers[i].buffer, 0,
+               BUFFER_SIZE * 2 * sizeof(float));
+    }
     audio_state.audio_buffers.buffer_index = 0;
     mtx_unlock(&audio_state.processing_mutex);
 }
 
-int AudioProcessingThread(void *audio_state) {
-    AudioState *state = (AudioState *)audio_state;
-
-    // Very similar to the AudioPlaybackThread, but we calculate the buffer here, the above one just uploads it to the audio stream
+int AudioProcessingThread(void *arg) {
+    AudioState *state = (AudioState *)arg;
     while (state->running) {
-        if (state->reset) {
-            reset_audiobuffers();
-            continue;
-        }
-
-        if (state->paused) {
-            continue;
-        }
-
-        // We do NOT render directly to main buffer, we render to the current buffer, then we swap it with the main buffer
-        if (state->audio_buffers.buffer_index >= AUDIO_BUFFER_COUNT)
-            continue; // Idle out, until the audio playback thread catches up
-
         mtx_lock(&state->processing_mutex);
+        while (state->paused && state->running) {
+            cnd_wait(&state->resume_processing_cnd, &state->processing_mutex);
+            audio_state.audio_buffers.buffer_index = 0;
+        }
 
-        // Render to the current buffer
+        if (state->audio_buffers.buffer_index >= AUDIO_BUFFER_COUNT) {
+            mtx_unlock(&state->processing_mutex);
+            continue;
+        }
+
+        if (state->started && state->audio_buffers.buffer_index == AUDIO_BUFFER_COUNT - 1) {
+            state->started = false;
+            cnd_signal(&state->resume_playback_cnd);
+        }
+
+        // I'm using auto because struct timespec is a type that has been overwritten by a macro, and this is an easy way to avoid it.
+        auto start = get_time_now();
         CalculateBuffer(state->audio_buffers.buffers[state->audio_buffers.buffer_index].buffer, BUFFER_SIZE);
-        state->audio_buffers.buffer_index++;
+        auto end = get_time_now();
 
+        double now = time_in_seconds(end);
+        double elapsed = time_in_seconds(start);
+
+        state->time_to_render_buffer = now - elapsed;
+        state->audio_buffers.buffer_index++;
         mtx_unlock(&state->processing_mutex);
     }
-
     return 0;
 }
 
 void play(__unused void* userdata) {
-    // mark userdata as optional, so the warning does not show up
-    mtx_lock(&audio_state.playback_mutex);
+    mtx_lock(&audio_state.processing_mutex);
     audio_state.paused = false;
-    mtx_unlock(&audio_state.playback_mutex);
+    audio_state.started = true;
+    mtx_unlock(&audio_state.processing_mutex);
+    cnd_signal(&audio_state.resume_processing_cnd);
 }
 
 void pauseCallback(__unused void* userdata) {
-    mtx_lock(&audio_state.playback_mutex);
+    mtx_lock(&audio_state.processing_mutex);
     audio_state.paused = true;
-    mtx_unlock(&audio_state.playback_mutex);
+    mtx_unlock(&audio_state.processing_mutex);
 }
 
 void stop(__unused void* userdata) {
-    mtx_lock(&audio_state.playback_mutex);
+    mtx_lock(&audio_state.processing_mutex);
     audio_state.paused = true;
     audio_state.reset = true;
-    mtx_unlock(&audio_state.playback_mutex);
+    mtx_unlock(&audio_state.processing_mutex);
 }
 
 void InitAudio() {
-    // This initializes the audio state and threads
+    // Initialize audio device and stream as before
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(BUFFER_SIZE);
     stream = LoadAudioStream(SAMPLE_RATE, 32, 2);
     PlayAudioStream(stream);
 
+    // Initialize the audio state
     audio_state = (AudioState) {
         .running = true,
         .paused = true,
         .reset = false,
-        .generator_state = generator_init(64), // cpu issues will probably happen around #500 generators
+        .generator_state = generator_init(64), // caution: many generators may hurt CPU (duh)
         .master_pan = 0,
         .master_volume = 1
     };
 
-    create_buffers(&audio_state);
+    create_buffers(&audio_state, default_arena); // long lasting memory
 
-    //
+    // Add a generator
     generator_add(&audio_state.generator_state, (Generator) {
         .frequency = 220,
         .phase = 0,
         .waveform = SINE,
         .amplitude = 0.5,
         .generate = GenerateWaveform,
-        .panning = -1
+        .panning = 0
     });
 
-    mtx_init(&audio_state.playback_mutex, mtx_plain);
+    // Initialize synchronization primitives
+    mtx_init(&audio_state.state_mutex, mtx_plain);
+    cnd_init(&audio_state.resume_processing_cnd);
+    cnd_init(&audio_state.resume_playback_cnd);
     mtx_init(&audio_state.processing_mutex, mtx_plain);
 
-    audio_state.running = true;
-    audio_state.paused = true;
-
+    // Set callbacks
     PlayCallback = play;
     PauseCallback = pauseCallback;
     StopCallback = stop;
 
+    // Create threads for playback and processing
     thrd_create(&audio_playback_thread, AudioPlaybackThread, &audio_state);
     thrd_create(&audio_process_thread, AudioProcessingThread, &audio_state);
 
-    printf("Created audio thread\n");
+    printf("Created audio threads\n");
+    printf("Audio initialization complete\n");
 }

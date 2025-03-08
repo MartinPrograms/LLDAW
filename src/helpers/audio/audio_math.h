@@ -22,15 +22,11 @@ static inline float smoothstep(float edge0, float edge1, float x) {
 
 static inline float panning(float value, float pan, bool rightChannel) {
     float result = value;
-    float leftGain, rightGain;
-    if (rightChannel) {
-        // Calculate gains for right channel
-        rightGain = (pan + 1.0f) * 0.5f;  // 0.0f to 1.0f
-        result *= rightGain;
+
+    if (!rightChannel) {
+        result *= (pan + 1.0f) * 0.5f;
     } else {
-        // Calculate gains for left channel
-        leftGain = (1.0f - pan) * 0.5f;   // 0.0f to 1.0f
-        result *= leftGain;
+        result *=  (1.0f - pan) * 0.5f;
     }
 
     return result;
@@ -56,5 +52,39 @@ static inline float adsr(float value, float attack, float decay, float sustain, 
 
     return value * envelope;
 }
+
+/// Channel [0,1,2] -> [left, right, mono (combined)]
+static inline float* mono_from_stereo(float* stereo, int size, int channel, ARENA* arena) {
+    float* mono = (float*)arena_alloc(arena, size * sizeof(float));
+    for (int i = 0; i < size; i++) {
+        if (channel == 0) {
+            mono[i] = stereo[i * 2];
+        } else if (channel == 1) {
+            mono[i] = stereo[i * 2 + 1];
+        } else {
+            mono[i] = (stereo[i * 2] + stereo[i * 2 + 1]) / 2.0f;
+        }
+    }
+    return mono;
+}
+
+/// Function to return time (in seconds) from samples, given the sample rate
+static inline float time_from_samples(int64_t samples, float sampleRate) {
+    return (float)samples / sampleRate;
+}
+
+#undef timespec
+
+static inline struct timespec get_time_now() { // sure i guess this isnt audio but whatever
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts;
+}
+
+static inline double time_in_seconds(struct timespec ts) { // genuinely dont care atp
+    return ts.tv_sec + ts.tv_nsec / 1.0e9;
+}
+
+#define timespec _tthread_timespec
 
 #endif

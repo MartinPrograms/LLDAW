@@ -3,6 +3,7 @@
 #define AUDIO_STATE_H
 
 #include <raylib.h>
+#include <stdint.h>
 #include <tinycthread.h>
 #include "generator.h"
 
@@ -11,7 +12,7 @@
 #define BIG_FIFO_BUFFER_SIZE SAMPLE_RATE
 #define SMALL_FIFO_BUFFER_SIZE 1024
 #define AUDIO_THREAD_PRIORITY 0 // 0 is considered default priority, if clicking occurs try setting to 1 which raises it to critical
-#define AUDIO_BUFFER_COUNT 2 // Increasing this adds slightly more latency, but can help with audio glitches
+#define AUDIO_BUFFER_COUNT 2
 
 typedef struct {
     float* buffer;
@@ -43,10 +44,16 @@ typedef struct {
 } AudioBuffers;
 
 typedef struct {
-    mtx_t playback_mutex;
+    mtx_t state_mutex;
+    cnd_t resume_playback_cnd; // This is called when resume_processing_cnd finishes fully.
+    cnd_t resume_processing_cnd;
+    bool started;
+
     mtx_t processing_mutex;
 
     AudioBuffers audio_buffers;
+    double time_to_render_buffer;
+
     GeneratorState generator_state;
 
     bool running; // Stops the entire thread, once turned off it can't be turned back on.
@@ -55,6 +62,9 @@ typedef struct {
 
     float master_pan;
     float master_volume;
+
+    // Use an unsigned 64 bit integer to store the current sample number
+    int64_t sample_number;
 } AudioState;
 
 extern AudioState audio_state;

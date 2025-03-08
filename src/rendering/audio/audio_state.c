@@ -8,62 +8,35 @@ thrd_t audio_process_thread = nullptr;
 
 #include <string.h>  // For memcpy and memset
 
-float * fifo_audio_to_normal(FifoAudioBuffer buffer, ARENA* arena) {
-    int size = buffer.buffer_size;
-    int head = buffer.head;
-    int tail = buffer.tail;
-    float* orig = buffer.buffer;
+// Write new samples into the FIFO, appending them at the head.
+void fifo_audio_write(FifoAudioBuffer* buffer, float* values, int count) {
+    for (int i = 0; i < count; ++i) {
+        buffer->buffer[buffer->head] = values[i];
+        buffer->head = (buffer->head + 1) % buffer->buffer_size;
 
-    float* new_buffer = (float*) arena_alloc(arena, size * sizeof(float));
-
-    // Determine the number of valid samples.
-    int count;
-    if (head >= tail) {
-        count = head - tail;
-        memcpy(new_buffer, orig + tail, count * sizeof(float));
-    } else {
-        int first_segment = size - tail;
-        memcpy(new_buffer, orig + tail, first_segment * sizeof(float));
-        memcpy(new_buffer + first_segment, orig, head * sizeof(float));
-        count = first_segment + head;
+        if (buffer->buffer_index < buffer->buffer_size) {
+            buffer->buffer_index++;
+        } else {
+            // Overwrite the oldest data by moving the tail forward
+            buffer->tail = (buffer->tail + 1) % buffer->buffer_size;
+        }
     }
-
-    if (count < size) {
-        memset(new_buffer + count, 0, (size - count) * sizeof(float));
-    }
-
-    return new_buffer;
 }
 
-void fifo_audio_write(FifoAudioBuffer* buffer, float* values, int count) {
-    int size = buffer->buffer_size;
-    int head = buffer->head;
-    int tail = buffer->tail;
-    float* orig = buffer->buffer;
-
-    // Determine the number of valid samples.
-    int valid;
-    if (head >= tail) {
-        valid = head - tail;
-    } else {
-        valid = size - tail + head;
+// Convert the FIFO buffer to a linear (normal) buffer.
+// The valid data is assumed to be in the range from tail to head.
+float* fifo_audio_to_normal(FifoAudioBuffer buffer, ARENA* arena) {
+    // Allocate memory from the arena for the linear buffer
+    float* linear_buffer = (float*)arena_alloc(arena, buffer.buffer_index * sizeof(float));
+    if (buffer.buffer_index == 0) {
+        return linear_buffer; // Return empty buffer if no data
     }
 
-    // Determine the number of samples to write.
-    int write = count;
-    if (write > size - valid) {
-        write = size - valid;
+    int current = buffer.tail;
+    for (int i = 0; i < buffer.buffer_index; ++i) {
+        linear_buffer[i] = buffer.buffer[current];
+        current = (current + 1) % buffer.buffer_size;
     }
 
-    // Write the samples.
-    if (tail + write < size) {
-        memcpy(orig + tail, values, write * sizeof(float));
-    } else {
-        int first_segment = size - tail;
-        memcpy(orig + tail, values, first_segment * sizeof(float));
-        memcpy(orig, values + first_segment, (write - first_segment) * sizeof(float));
-    }
-
-    // Update the tail.
-    buffer->tail = (tail + write) % size;
+    return linear_buffer;
 }

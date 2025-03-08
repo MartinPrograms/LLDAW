@@ -15,7 +15,7 @@
 #include "rendering/audio/audio_processor.h"
 
 int main(void) {
-    Init(1024 * 1024 * 4); // Initialize the Helper Library with a 4MB arena
+    Init(1024 * 1024 * 1024); // Initialize the Helper Library with a 4MB arena
     InitWindow(1920, 1080, "LLDAW");
     SetTargetFPS(240);
 
@@ -48,7 +48,7 @@ int main(void) {
             if (audio_state.paused) {
                 play(nullptr);
             } else {
-                stop(nullptr);
+                pauseCallback(nullptr);
             }
         }
 
@@ -63,10 +63,13 @@ int main(void) {
 
     audio_state.running = false;
 
+    cnd_broadcast(&audio_state.resume_processing_cnd); // otherwise the audio thread will never wake up, and the program will hang
+    cnd_broadcast(&audio_state.resume_playback_cnd);
+
     thrd_join(audio_playback_thread, NULL);
     thrd_join(audio_process_thread, NULL);
 
-    mtx_destroy(&audio_state.playback_mutex);
+    mtx_destroy(&audio_state.state_mutex);
     mtx_destroy(&audio_state.processing_mutex);
 
     UnloadAudioStream(stream);

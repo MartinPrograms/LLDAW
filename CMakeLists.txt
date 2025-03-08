@@ -27,6 +27,10 @@ else ()
     add_compile_options(-Wall -Wextra -Werror)
 endif ()
 
+if (MINGW)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+endif ()
+
 # Link the files in ./libs/tinycthread
 add_library(tinycthread STATIC ./libs/tinycthread/tinycthread.c)
 target_include_directories(tinycthread PUBLIC ./libs/tinycthread)
