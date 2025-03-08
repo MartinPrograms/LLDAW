@@ -1,6 +1,8 @@
 #ifndef GENERATOR_H
 #define GENERATOR_H
 
+#define UNISON_MAX_CENTS 100 // Maximum detune in cents
+
 #include <stdint.h>
 
 #include "../../helpers/basic/arena.h"
@@ -20,7 +22,7 @@ typedef struct {
     float frequency;
     float amplitude;
     float panning;
-    float phase;
+    float* phase;
     int note;
     int64_t startSample;
     int64_t endSample;
@@ -51,6 +53,14 @@ typedef struct {
     float phase;
     /// Waveform of the generator
     Waveform waveform;
+
+    /// Unison of the generator [1+]
+    int unison;
+    /// Unison detune of the generator [0, 1]
+    float unison_detune;
+    /// Phase randomization of the generator [0, 1]
+    float phase_randomization;
+
     /// Envelope of the generator
     AdsrEnvelope envelope;
     /// Master volume/amplitude of the generator

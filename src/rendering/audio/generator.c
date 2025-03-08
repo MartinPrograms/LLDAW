@@ -144,17 +144,48 @@ void generator_voice_process(int note, float frequency, float amplitude, bool de
         .frequency = frequency,
         .amplitude = amplitude,
         .panning = 0,  // TODO: Adjust panning as needed.
-        .phase = 0,
+        .phase = (float*)arena_alloc(default_arena, sizeof(float) * generator->unison),
         .note = note,
         .active = true,
         .startSample = audio_state.sample_number,
     };
+
+    // Randomize phase for each unison voice.
+    for (int i = 0; i < generator->unison; i++) {
+        float random = generator->phase_randomization; // % to differ from base, if its 1 we must add full randomization
+        generator->voices.voices[generator->voices.voiceCount - 1].phase[i] = random_value(0, 2.0f * PI) * random;
+    }
 }
 
 
+void generate_waveform(Generator *generator, float phase, float amplitude, float *output) {
+    const Waveform waveform = generator->waveform;
+    *output = 0.0f;
+
+    switch (waveform) {
+        case SINE:
+            *output = sinf(phase) * amplitude;  // Use original phase value
+            break;
+        case SAWTOOTH:
+            *output = (2.0f * phase / (2.0f * PI) - 1.0f) * amplitude;
+            break;
+        case SQUARE:
+            *output = (phase < PI) ? amplitude : -amplitude;
+            break;
+        case TRIANGLE:
+            *output = (2.0f / PI) * asinf(sinf(phase)) * amplitude;
+            break;
+        case NOISE:
+            *output = (float)GetRandomValue(-1000, 1000) / 1000.0f * amplitude;
+            break;
+        default:
+            break;
+    }
+}
+
 void generate_voice(bool rightChannel, bool advancePhase, Generator *generator, int index, Voice* voices, float *value) {
     Voice* voice = &voices[index];
-    float phase = voice->phase;
+    float mainPhase = voice->phase[0];
     const float frequency = voice->frequency;
 
     float amplitude = voice->amplitude;
@@ -166,43 +197,60 @@ void generate_voice(bool rightChannel, bool advancePhase, Generator *generator, 
         return;
     }
 
-    const Waveform waveform = generator->waveform;
     float output = 0.0f;
 
-    // Phase increment FIRST (before wrapping)
-    if (advancePhase) {
-        voice->phase += 2.0f * PI * frequency / SAMPLE_RATE;
+    int unisonCount = generator->unison;
+    float unisonDetune = generator->unison_detune; // % of the UNISON_MAX_CENTS
 
-        // Phase wrapping with modulus (keeps phase in [0, 2π) range)
-        voice->phase = fmodf(voice->phase, 2.0f * PI);
+    if (unisonCount > 1) {
+        const float max_cents = UNISON_MAX_CENTS * unisonDetune;
+        float unisonSum = 0.0f;
+        const float base_pan = voice->panning;
+        // Loop through each unison voice.
+        for (int i = 0; i < unisonCount; i++) {
+            // Calculate a detune offset in cents. This spreads voices evenly from -max_cents to +max_cents.
+            float detuneCents = 0.0f;
+            if (unisonCount > 1) {
+                // Map i from [0, unisonCount-1] to [-1, +1] then scale by max_cents.
+                detuneCents = max_cents * ((2.0f * i / (unisonCount - 1)) - 1.0f);
+            }
+            // Convert detune (in cents) to a frequency multiplier.
+            float detuneFactor = powf(2.0f, detuneCents / 1200.0f);
+            float detunedFrequency = voice->frequency * detuneFactor;
+            float phaseIncrement = 2.0f * PI * detunedFrequency / SAMPLE_RATE;
+
+            // Use the phase for this unison voice (assuming voice->phase is an array sized to at least unisonCount)
+            float currentPhase = voice->phase[i];
+            float voiceOutput = 0.0f;
+
+            // Generate the waveform sample for this sub-voice.
+            generate_waveform(generator, currentPhase, amplitude, &voiceOutput);
+            // Apply panning for each sub-voice individually.
+            float panningValue = base_pan + (detuneCents / max_cents) * (1.0f - base_pan);
+            voiceOutput = panning(voiceOutput, panningValue, rightChannel);
+
+            unisonSum += voiceOutput;
+
+            // Advance the phase if needed.
+            if (advancePhase) {
+                currentPhase += phaseIncrement;
+                if (currentPhase > 2.0f * PI)
+                    currentPhase -= 2.0f * PI;
+            }
+            voice->phase[i] = currentPhase;
+        }
+        // Normalize the summed output.
+        output = unisonSum / (float)unisonCount;    } else {
+        generate_waveform(generator, mainPhase, amplitude, &output);
+        // Apply main voice panning for non-unison case
+        output = panning(output, voice->panning, rightChannel);
+        if (advancePhase) {
+            voice->phase[0] += 2.0f * PI * frequency / SAMPLE_RATE;
+            if (voice->phase[0] > 2.0f * PI) {
+                voice->phase[0] -= 2.0f * PI;
+            }
+        }
     }
-    // Handle negative phase values (fmod() can return negatives)
-    if (voice->phase < 0)
-        voice->phase += 2.0f * PI;
-
-    switch (waveform) {
-        case SINE:
-            output = sinf(phase) * amplitude;  // Use original phase value
-            break;
-        case SAWTOOTH:
-            output = (2.0f * phase / (2.0f * PI) - 1.0f) * amplitude;
-            break;
-        case SQUARE:
-            output = (phase < PI) ? amplitude : -amplitude;
-            break;
-        case TRIANGLE:
-            output = (2.0f / PI) * asinf(sinf(phase)) * amplitude;
-            break;
-        case NOISE:
-            output = (float)GetRandomValue(-1000, 1000) / 1000.0f * amplitude;
-            break;
-        default:
-            break;
-    }
-
-    // Apply panning (0 is center, -1 is left, 1 is right)
-    const float pan = voice->panning;  // pan range: -1.0f (left) to 1.0f (right)
-    output = panning(output, pan, rightChannel);
 
     *value += output;
 }

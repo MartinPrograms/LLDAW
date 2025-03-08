@@ -36,23 +36,6 @@ static inline float gain(float value, float gain) {
     return value * gain;
 }
 
-static inline float adsr(float value, float attack, float decay, float sustain, float release, float sample, float sampleRate) {
-    float envelope = 0.0f;
-    float timeInSeconds = sample / sampleRate;
-
-    if (timeInSeconds < attack) {
-        envelope = lerp(0.0f, 1.0f, timeInSeconds / attack);
-    } else if (timeInSeconds < attack + decay) {
-        envelope = lerp(1.0f, sustain, (timeInSeconds - attack) / decay);
-    } else if (timeInSeconds < attack + decay + sustain) {
-        envelope = sustain;
-    } else {
-        envelope = lerp(sustain, 0.0f, (timeInSeconds - attack - decay - sustain) / release);
-    }
-
-    return value * envelope;
-}
-
 /// Channel [0,1,2] -> [left, right, mono (combined)]
 static inline float* mono_from_stereo(float* stereo, int size, int channel, ARENA* arena) {
     float* mono = (float*)arena_alloc(arena, size * sizeof(float));
@@ -80,6 +63,10 @@ static inline int64_t samples_from_time(float time, float sampleRate) {
 
 static inline float midi_note_to_frequency(int note) {
     return 440.0f * powf(2.0f, (note - 69) / 12.0f); // TODO: add tuning
+}
+
+static inline float random_value(float min, float max) {
+    return min + (max - min) * ((float)rand() / RAND_MAX);
 }
 
 #undef timespec

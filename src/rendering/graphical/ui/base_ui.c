@@ -298,7 +298,7 @@ void generator_edit(int i, Generator generator) {
             snprintf(panningString, 10, "%.2f", generator.panning);
             panning = StringConcat(&panning, panningString);
 
-            STRING amplitude = StringCreate("Vol [0, 1]: ", frame_arena);
+            STRING amplitude = StringCreate("Vol [-1, 1]: ", frame_arena);
             char *amplitudeString = arena_alloc(frame_arena, 10);
             // 0.00 format
             snprintf(amplitudeString, 10, "%.2f", generator.amplitude);
