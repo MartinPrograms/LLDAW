@@ -2,6 +2,7 @@
 #define COMPONENTS_H
 
 #include <clay.h>
+#include "../../audio/generator.h"
 
 typedef struct {
     const char* text;
@@ -19,6 +20,7 @@ typedef struct {
 extern int CustomComponentIndex;
 void WaveformVisualizer(const float* buffer, int bufferSize);
 void SpectrumVisualizer(const float* buffer, int bufferSize);
+void AdsrVisualizer(AdsrEnvelope envelope);
 
 extern int ButtonCount;
 void CreateButton(const char *text, void* userData, void (*callback)(void*));

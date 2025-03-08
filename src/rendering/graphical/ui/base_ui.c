@@ -268,7 +268,7 @@ void generator_edit(int i, Generator generator) {
         CLAY({
              .id = CLAY_ID_LOCAL("GeneratorName"),
              .layout = {
-             .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_FIT()},
+             .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_GROW()},
              .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
              .layoutDirection = CLAY_TOP_TO_BOTTOM,
              .childAlignment = {CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_TOP}
@@ -285,30 +285,55 @@ void generator_edit(int i, Generator generator) {
             CLAY_TEXT(GetString(generatorType.data), CLAY_TEXT_CONFIG(
                           {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
 
-            STRING frequency = StringCreate("Frequency: ", frame_arena);
+            STRING frequency = StringCreate("Pitch ", frame_arena);
             char *frequencyString = arena_alloc(frame_arena, 10);
             // 0.00 format
             snprintf(frequencyString, 10, "%.2f", generator.frequency);
             frequency = StringConcat(&frequency, frequencyString);
             frequency = StringConcat(&frequency, "hz");
-            CLAY_TEXT(GetString(frequency.data), CLAY_TEXT_CONFIG(
-                          {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
 
-            STRING panning = StringCreate("Panning [-1, 1]: ", frame_arena);
+            STRING panning = StringCreate("Pan [-1, 1]: ", frame_arena);
             char *panningString = arena_alloc(frame_arena, 10);
             // 0.00 format
             snprintf(panningString, 10, "%.2f", generator.panning);
             panning = StringConcat(&panning, panningString);
-            CLAY_TEXT(GetString(panning.data), CLAY_TEXT_CONFIG(
-                          {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
 
-            STRING amplitude = StringCreate("Amplitude [0, 1]: ", frame_arena);
+            STRING amplitude = StringCreate("Vol [0, 1]: ", frame_arena);
             char *amplitudeString = arena_alloc(frame_arena, 10);
             // 0.00 format
             snprintf(amplitudeString, 10, "%.2f", generator.amplitude);
             amplitude = StringConcat(&amplitude, amplitudeString);
-            CLAY_TEXT(GetString(amplitude.data), CLAY_TEXT_CONFIG(
+
+            // merge frequency, panning, amplitude into one string
+            STRING generatorStats = StringCreate("", frame_arena);
+            generatorStats = StringConcat(&generatorStats, frequency.data);
+            generatorStats = StringConcat(&generatorStats, " / ");
+            generatorStats = StringConcat(&generatorStats, panning.data);
+            generatorStats = StringConcat(&generatorStats, " / ");
+            generatorStats = StringConcat(&generatorStats, amplitude.data);
+
+            CLAY_TEXT(GetString(generatorStats.data), CLAY_TEXT_CONFIG(
+                {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_WORDS}));
+
+            STRING adsr = StringCreate("ADSR: ", frame_arena);
+            CLAY_TEXT(GetString(adsr.data), CLAY_TEXT_CONFIG(
                           {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
+
+            CLAY({
+                     .id = CLAY_IDI("ADSR", i),
+                     .layout = {
+                        .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_GROW()},
+                        .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
+                        .childGap = STANDARD_GAP,
+                        .layoutDirection = CLAY_LEFT_TO_RIGHT,
+                        .childAlignment = {CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER}
+                },
+                     .backgroundColor = COLOR_SCHEME_BACKGROUND_DARK,
+                     .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
+                 }) {
+                AdsrEnvelope env = generator.envelope;
+                AdsrVisualizer(env);
+            }
         }
     }
 }

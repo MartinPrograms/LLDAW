@@ -117,6 +117,43 @@ void SpectrumDraw(const float* buffer, int bufferSize, Color color, float width,
     rlEnd();
 }
 
+void AdsrDraw(AdsrEnvelope envelope, Color color, float width, float height, float x, float y) {
+    // Total time (in seconds) for the drawn envelope (attack, decay, release)
+    float totalTime = envelope.attack + envelope.decay + envelope.release;
+
+    // Calculate x positions for each phase:
+    float attackX = x + (envelope.attack / totalTime) * width;
+    float decayX = x + ((envelope.attack + envelope.decay) / totalTime) * width;
+    float endX   = x + width;
+
+    // Assuming a typical screen coordinate system where y increases downward:
+    // We want amplitude 1 at the top and amplitude 0 at the bottom.
+    float startY   = y + height;                  // Amplitude 0
+    float peakY    = y;                           // Amplitude 1 (attack peak)
+    // Sustain level: interpolate between peak and start based on sustain value.
+    float sustainY = y + height - envelope.sustain * height;
+
+    // Create control points for the ADSR envelope.
+    // 0: Start (0 amplitude)
+    // 1: End of attack (peak at amplitude 1)
+    // 2: End of decay (sustain level)
+    // 3: End of release (back to 0)
+    Vector2 points[4];
+    points[0] = (Vector2){ x,        startY   };
+    points[1] = (Vector2){ attackX,  peakY    };
+    points[2] = (Vector2){ decayX,   sustainY };
+    points[3] = (Vector2){ endX,     startY   };
+
+    // Draw lines connecting the control points.
+    rlBegin(RL_LINES);
+    rlSetLineWidth(2);
+    rlColor4ub(color.r, color.g, color.b, color.a);
+    for (int i = 0; i < 3; i++) {
+        rlVertex2f(points[i].x, points[i].y);
+        rlVertex2f(points[i+1].x, points[i+1].y);
+    }
+    rlEnd();
+}
 
 void RenderCustomElement(CustomElement *element, float width, float height, float x, float y) {
     switch (element->type){
@@ -126,6 +163,10 @@ void RenderCustomElement(CustomElement *element, float width, float height, floa
 
         case CUSTOM_ELEMENT_TYPE_SPECTRUM:
             SpectrumDraw(element->customData.spectrum.buffer, element->customData.spectrum.bufferSize, element->color, width, height, x, y, SAMPLE_RATE, element->customData.spectrum.quality);
+            break;
+
+        case CUSTOM_ELEMENT_TYPE_ADSR:
+            AdsrDraw(element->customData.adsr.envelope, element->color, width, height, x, y);
             break;
     }
 }

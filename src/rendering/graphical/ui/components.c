@@ -87,6 +87,46 @@ void SpectrumVisualizer(const float *buffer, int bufferSize) {
     }
 }
 
+void AdsrVisualizer(AdsrEnvelope envelope) {
+    // black background, green lines
+    CustomComponentIndex++;
+
+    CLAY({
+             .id = CLAY_IDI("AdsrVisualizer", CustomComponentIndex),
+             .layout = {
+                .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_GROW()}, // the user is responsible for sizing the component
+                .padding = CLAY_PADDING_ALL(0),
+                .childGap = 0,
+                .layoutDirection = CLAY_TOP_TO_BOTTOM
+        },
+             .cornerRadius = CLAY_CORNER_RADIUS(0)
+         }) {
+
+        // The actual custom component
+        CustomElement adsrElement = {
+            .type = CUSTOM_ELEMENT_TYPE_ADSR,
+            .color = COLOR_SCHEME_WAVEFORM,
+            .customData.adsr = {
+                .envelope = envelope
+            }
+        };
+
+        void* ptr = arena_alloc(frame_arena, sizeof(CustomElement));
+        memcpy(ptr, &adsrElement, sizeof(CustomElement));
+
+        CLAY({
+            .layout = {
+                .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_GROW()},
+                .padding = CLAY_PADDING_ALL(0),
+                .childGap = 0,
+                .layoutDirection = CLAY_TOP_TO_BOTTOM
+            },
+            .custom = {
+                    .customData = ptr,
+            }
+        });
+    }
+}
 
 
 void HandleButtonInteraction(__unused Clay_ElementId id, Clay_PointerData data, intptr_t userData){
