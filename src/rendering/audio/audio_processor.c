@@ -77,7 +77,7 @@ void update_audio_stream(AudioState *state) {
     state->audio_buffers.buffer_index--;
     if (state->audio_buffers.buffer_index < 0) {
         state->audio_buffers.buffer_index = 0;
-        printf("Buffer underrun...\n");
+        printf("Buffer underrun!!!\n");
     }
 
     mtx_unlock(&state->processing_mutex);
@@ -195,7 +195,7 @@ void InitAudio() {
     generator_add(&audio_state.generator_state, (Generator) {
         .frequency = 220,
         .phase = 0,
-        .waveform = SINE,
+        .waveform = TRIANGLE,
         .amplitude = 0.5,
         .generate = GenerateWaveform,
         .panning = 0

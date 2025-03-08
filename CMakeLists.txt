@@ -41,6 +41,18 @@ target_include_directories(clay INTERFACE ./libs/clay)
 add_library(kiss_fft STATIC ./libs/kiss_fft/kiss_fft.c)
 target_include_directories(kiss_fft PUBLIC ./libs/kiss_fft)
 
+add_subdirectory(libs/portmidi EXCLUDE_FROM_ALL)
+
+# Override the include directories to use relative paths
+get_target_property(PORTMIDI_INCLUDES portmidi INTERFACE_INCLUDE_DIRECTORIES)
+
+# For building port midi, disable all warnings as errors (it has a lot of warnings, at least on MinGW)
+if (MSVC)
+    set_property(TARGET portmidi APPEND_STRING PROPERTY COMPILE_FLAGS "/W0")
+else ()
+    set_property(TARGET portmidi APPEND_STRING PROPERTY COMPILE_FLAGS "-w")
+endif ()
+
 # link all files from the src/* directory and their subdirectories
 file(GLOB_RECURSE SOURCES "src/*.c")
 add_executable(LLDAW ${SOURCES})
@@ -49,6 +61,7 @@ target_link_libraries(LLDAW raylib)
 target_link_libraries(LLDAW tinycthread)
 target_link_libraries(LLDAW clay)
 target_link_libraries(LLDAW kiss_fft)
+target_link_libraries(LLDAW portmidi)
 
 if (APPLE)
     target_link_libraries(LLDAW "-framework IOKit")

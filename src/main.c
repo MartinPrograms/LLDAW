@@ -15,7 +15,7 @@
 #include "rendering/audio/audio_processor.h"
 
 int main(void) {
-    Init(1024 * 1024 * 1024); // Initialize the Helper Library with a 4MB arena
+    Init(1024 * 1024 * 4); // Initialize the Helper Library with a 4MB arena
     InitWindow(1920, 1080, "LLDAW");
     SetTargetFPS(240);
 
