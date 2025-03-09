@@ -1,0 +1,6 @@
+﻿#ifndef REGULAR_SEQUENCER_H
+#define REGULAR_SEQUENCER_H
+
+
+
+#endif // REGULAR_SEQUENCER_H

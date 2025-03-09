@@ -8,6 +8,7 @@
 #include "generator.h"
 #include "../../helpers/include.h"
 #include "../../helpers/basic/definitions.h" // not automatically included by include.h.
+#include "../../sequencing/sequencer.h"
 
 void InitAudio();
 int AudioPlaybackThread(void* audio_state);

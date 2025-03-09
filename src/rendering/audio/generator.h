@@ -83,10 +83,11 @@ void generator_add(GeneratorState* state, Generator generator);
 void generator_remove(GeneratorState* state, int index);
 void generator_free(GeneratorState* state);
 
-void generator_voice_process(int note, float frequency, float amplitude, bool deactivate, Generator* generator);
+void generator_voice_process(int note, float frequency, float amplitude, float pan, bool deactivate, Generator* generator);
 void generator_voice_remove(int note, Generator* generator);
 void generator_voice_deactivate(int note, Generator* generator);
 void generator_voice_cleanse(Generator* generator);
+void generator_kill_all_voices(Generator* generator);
 
 float GenerateWaveform(void* generator, bool rightChannel, bool advancePhase);
 

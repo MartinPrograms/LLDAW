@@ -186,7 +186,7 @@ void generator_voice_cleanse(Generator *generator) {
     generator->inactive_voices.tail = newInactiveCount % inactiveMax;
 }
 
-void generator_voice_process(int note, float frequency, float amplitude, bool deactivate, Generator *generator) {
+void generator_voice_process(int note, float frequency, float amplitude, float pan, bool deactivate, Generator *generator) {
     if (deactivate) {
         generator_voice_deactivate(note, generator);
         return;
@@ -203,7 +203,7 @@ void generator_voice_process(int note, float frequency, float amplitude, bool de
     generator->active_voices.voices[index] = (Voice) {
         .frequency = frequency,
         .amplitude = amplitude,
-        .panning = 0,  // TODO: Adjust panning as needed.
+        .panning = pan,  // TODO: Adjust panning as needed.
         .arena = new_arena,
         .phase = (float*)arena_alloc(new_arena, sizeof(float) * generator->unison),
         .note = note,
@@ -345,4 +345,12 @@ float GenerateWaveform(void* generator_void, bool  rightChannel, bool advancePha
     generator_voice_cleanse(generator);
 
     return value;
+}
+
+void generator_kill_all_voices(Generator* generator){
+    for (int i = 0; i < generator->active_voices.count; i++) {
+        generator->active_voices.voices[i].remove = true;
+    }
+
+    generator_voice_cleanse(generator);
 }

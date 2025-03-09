@@ -15,6 +15,8 @@
 #include "rendering/graphical/ui/base_ui.h"
 #include "rendering/audio/audio_processor.h"
 
+#include "sequencing/sequencer.h"
+
 int main(void) {
     init_math(); // This does some stuff for precomputed tables and such
 
@@ -25,6 +27,79 @@ int main(void) {
     SetWindowState(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_MAXIMIZED);
 
     InitAudio();
+    ////////////////////////////////////////////////////////////////////////////////////////
+    // Create the song:
+    sequencer_init();
+    generator_add(&audio_state.generator_state, (Generator) {
+        .frequency = 220,
+        .phase = 0,
+        .waveform = SAWTOOTH,
+        .amplitude = 1,
+        .generate = GenerateWaveform,
+        .panning = -0.f,
+        .unison = 8,
+        .unison_detune = 0.2f,
+        .phase_randomization = 1.0f, // 100% randomization
+        .envelope = adsr_envelope_basic()
+    });
+
+    generator_add(&audio_state.generator_state, (Generator) {
+        .frequency = 220,
+        .phase = 0,
+        .waveform = TRIANGLE,
+        .amplitude = 1,
+        .generate = GenerateWaveform,
+        .panning = -0.f,
+        .unison = 1,
+        .unison_detune = 0.2f,
+        .phase_randomization = 1.0f, // 100% randomization
+        .envelope = (AdsrEnvelope){
+            .attack = {0.01f, 0.5f},
+            .decay = {0.2f, 0.8f},
+            .sustain = 0.0f,
+            .release = {0.01f, 0.5f},
+        }
+    });
+
+    adsr_cache_envelope(&audio_state.generator_state.generators[1].envelope, default_arena, SAMPLE_RATE);
+
+    // 1/4th
+    int64_t oneeighth = SAMPLE_RATE / 8;
+    __unused int64_t onefourth = SAMPLE_RATE / 4;
+    __unused int64_t onefourfour = SAMPLE_RATE / 2;
+    __unused int64_t onefourthree = 3 * SAMPLE_RATE / 4;
+    int64_t onefour = SAMPLE_RATE; // Bar
+
+    // basic C major scale
+    int rootC = 60;
+
+    sequencer_add_note((Note) {
+            .generator_index = 0,
+            .frequency = midi_note_to_frequency(rootC - 24 + 2),
+            .amplitude = 0.5f,
+            .pan = 0.0f,
+            .start_sample = 0,
+            .end_sample = onefour * 8,
+            .active = true,
+            .idx = 0
+    });
+
+    int dnotesminor[] = {NOTE_D, NOTE_A, NOTE_F, NOTE_G};
+    for (int i = 0; i < 32; i++) {
+        // arpeggio in D scale
+        sequencer_add_note((Note) {
+                .generator_index = 1,
+                .frequency = midi_note_to_frequency(note_to_midi(dnotesminor[i % 4], 5)),
+                .amplitude = 0.5f,
+                .pan = 0.0f,
+                .start_sample = i * oneeighth,
+                .end_sample = (i + 1) * oneeighth,
+                .active = true,
+                .idx = i + 1
+        });
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////
 
     InitUI(GetScreenWidth(), GetScreenHeight());
     SetUIRenderFunction(RenderMainUI);

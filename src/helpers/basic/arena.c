@@ -1,4 +1,6 @@
 ﻿#include "arena.h"
+
+#include <stdio.h>
 #include <stdlib.h>
 
 ARENA* default_arena = NULL;
@@ -31,6 +33,7 @@ void arena_destroy(ARENA *arena) {
 void *arena_alloc(ARENA *arena, size_t size) {
     // Check if there's enough space in the arena.
     if (arena->offset + size > arena->capacity) {
+        printf("[WARNING] Arena is full, cannot allocate %zu bytes.\n", size);
         return NULL;
     }
 

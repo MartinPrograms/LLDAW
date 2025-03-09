@@ -9,15 +9,36 @@ void CalculateBuffer(float *buffer, int bufferSize) {
     for (int i = 0; i < bufferSize; i++) {
         float sumL = 0;
         float sumR = 0;
-        MidiMessage *messages = NULL;
+
+        int noteCount = 0;
+        Note* notes = sequencer_get_notes_at(audio_state.sample_number, &noteCount, buffer_arena);
+
+        __unused MidiMessage *messages = NULL;
         int readout = 0;
+
         if (midi_state.enabled) {
             PmEvent event[4];
             messages = midi_processor_process(event, 4, &readout, buffer_arena);
         }
+
         for (int j = 0; j < audio_state.generator_state.generatorCount; j++) {
             Generator *generator = &audio_state.generator_state.generators[j];
 
+            for (int k = 0; k < noteCount; k++) {
+                Note note = notes[k];
+                if (note.generator_index == j) {
+                    if (note.end_sample == audio_state.sample_number) {
+                        generator_voice_process(note.idx, note.frequency, note.amplitude, note.pan, true, generator);
+                    }
+                    else if (note.start_sample == audio_state.sample_number) {
+                        generator_voice_process(note.idx, note.frequency, note.amplitude, note.pan, false, generator);
+                    }
+                }
+
+
+            }
+
+            /*
             if (midi_state.enabled) {
                 for (int k = 0; k < readout; k++) {
                     if (messages[k].status == 144){ // The status 144 is a note on message
@@ -31,6 +52,7 @@ void CalculateBuffer(float *buffer, int bufferSize) {
                     }
                 }
             }
+            */
 
             sumL += generator->generate(generator, true, false);
             sumR += generator->generate(generator, false, true); // we advance the phase here!
@@ -153,6 +175,23 @@ int AudioProcessingThread(void *arg) {
             cnd_signal(&state->resume_playback_cnd);
         }
 
+        if (state->reset) {
+            // This means we clear all the buffers
+            for (int i = 0; i < AUDIO_BUFFER_COUNT; i++) {
+                memset(state->audio_buffers.buffers[i].buffer, 0, BUFFER_SIZE * 2 * sizeof(float));
+            }
+
+            memset(state->audio_buffers.main_buffer.buffer, 0, BUFFER_SIZE * sizeof(float));
+
+            state->audio_buffers.buffer_index = 0;
+            state->reset = false;
+
+            // Go through all the notes and KILL THEM ALL
+            for (int i = 0; i < state->generator_state.generatorCount; i++) {
+                generator_kill_all_voices(&state->generator_state.generators[i]);
+            }
+        }
+
         int64_t start = get_time_now(); // In seconds
 
         arena_reset(buffer_arena); // Clear the buffer arena (remove old midi messages)
@@ -185,6 +224,7 @@ void stop(__unused void* userdata) {
     mtx_lock(&audio_state.processing_mutex);
     audio_state.paused = true;
     audio_state.reset = true;
+    audio_state.sample_number = 0;
     mtx_unlock(&audio_state.processing_mutex);
 }
 
@@ -206,20 +246,6 @@ void InitAudio() {
     };
 
     create_buffers(&audio_state, default_arena); // long lasting memory
-
-    // Add a generator
-    generator_add(&audio_state.generator_state, (Generator) {
-        .frequency = 220,
-        .phase = 0,
-        .waveform = SAWTOOTH,
-        .amplitude = 1,
-        .generate = GenerateWaveform,
-        .panning = 0,
-        .unison = 8,
-        .unison_detune = 0.2f,
-        .phase_randomization = 1.0f, // 100% randomization
-        .envelope = adsr_envelope_basic()
-    });
 
     // Initialize synchronization primitives
     mtx_init(&audio_state.state_mutex, mtx_plain);

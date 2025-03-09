@@ -14,6 +14,7 @@
 #include "../rendering/audio/audio_state.h" // The audio state is included to make it available in other files
 #include "./basic/formatters.h"
 #include "./audio/audio_math.h"
+#include "./audio/audio_definitions.h"
 
 extern ARENA* default_arena;
 extern ARENA* frame_arena;

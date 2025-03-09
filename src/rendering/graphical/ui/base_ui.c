@@ -128,6 +128,13 @@ STRING GetTopbarStats() {
     snprintf(bufferIndexString, 10, "%d", audio_state.audio_buffers.buffer_index);
     stats = StringConcat(&stats, bufferIndexString);
 
+    // Append the buffer render time as (time: x)
+    stats = StringConcat(&stats, " (");
+    char *timeString = arena_alloc(frame_arena, 10);
+    snprintf(timeString, 10, "%.2f", audio_state.time_to_render_buffer * 1000);
+    stats = StringConcat(&stats, timeString);
+    stats = StringConcat(&stats, "ms)");
+
     if (audio_state.audio_buffers.buffer_index >= AUDIO_BUFFER_COUNT) {
         // This means it's full and waiting, append (waiting)
         stats = StringConcat(&stats, " (waiting)");
@@ -144,13 +151,6 @@ STRING GetTopbarStats() {
         // This means it's paused, append (paused)
         stats = StringConcat(&stats, " (paused)");
     }
-
-    // Append the buffer render time as (time: x)
-    stats = StringConcat(&stats, " (");
-    char *timeString = arena_alloc(frame_arena, 10);
-    snprintf(timeString, 10, "%.2f", audio_state.time_to_render_buffer * 1000);
-    stats = StringConcat(&stats, timeString);
-    stats = StringConcat(&stats, "ms)");
 
     // End buffer index stat
 
