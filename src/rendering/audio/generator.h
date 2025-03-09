@@ -40,10 +40,15 @@ typedef struct {
 } VoiceStack;
 
 typedef struct {
-    float attack;
-    float decay;
+    float value;
+    float tension;
+} AdsrValue;
+
+typedef struct {
+    AdsrValue attack;
+    AdsrValue decay;
     float sustain;
-    float release;
+    AdsrValue release;
 } AdsrEnvelope; // Attack, Decay, Sustain, Release
 
 typedef struct {

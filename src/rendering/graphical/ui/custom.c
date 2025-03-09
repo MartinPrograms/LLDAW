@@ -121,8 +121,8 @@ void SpectrumDraw(const float* buffer, int bufferSize, Color color, float width,
 
 void AdsrDraw(AdsrEnvelope envelope, Color color, float width, float height, float x, float y) {
     // Total time (in seconds) for the drawn envelope (attack, decay, release)
-    float totalTime = envelope.attack + envelope.decay + envelope.release;
-    float activeTime = envelope.attack + envelope.decay;
+    float totalTime = envelope.attack.value + envelope.decay.value + envelope.release.value;
+    float activeTime = envelope.attack.value + envelope.decay.value;
     int64_t active_samples = (int64_t)(activeTime * SAMPLE_RATE);
 
     float heights[(int)width]; // Height of the envelope at each x position

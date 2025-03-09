@@ -7,6 +7,12 @@ static inline float lerp(float a, float b, float t) {
     return a + t * (b - a);
 }
 
+/// A lerp, with tension parameter to control the curve
+static inline float lerp_tension(float a, float b, float t, float tension) {
+    return lerp(a, b, powf(t, tension));
+}
+
+
 static inline float map(float value, float start1, float stop1, float start2, float stop2) {
     return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
 }
