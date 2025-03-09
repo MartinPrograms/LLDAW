@@ -121,7 +121,7 @@ void adsr_cache_envelope(AdsrEnvelope *envelope, ARENA* arena, float sampleRate)
 AdsrEnvelope adsr_envelope_basic() {
     AdsrEnvelope envelope = {
         .attack = {
-            .value = 0.3f,
+            .value = 0.01f,
             .tension = 0.5f
         },
         .decay ={
@@ -130,7 +130,7 @@ AdsrEnvelope adsr_envelope_basic() {
         },
         .sustain = 1.f,
         .release ={
-            .value = 0.5f,
+            .value = 0.01f,
             .tension = -0.5f
         },
     };
