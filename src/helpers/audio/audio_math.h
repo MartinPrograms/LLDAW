@@ -158,6 +158,10 @@ static inline float random_value(float min, float max) {
     return min + (max - min) * ((float)rand() / (float)RAND_MAX);
 }
 
+#if defined(__x86_64__)
+#undef timespec
+#endif
+
 /// Returns the current time in nanoseconds
 static inline int64_t get_time_now() { // sure i guess this isnt audio but whatever
     struct timespec ts;
@@ -167,7 +171,11 @@ static inline int64_t get_time_now() { // sure i guess this isnt audio but whate
 
 static inline float nanoseconds_to_milliseconds(int64_t nanoseconds) {
     // Convert first to microseconds, then to milliseconds
-    return (float)nanoseconds / 1000000.0f;
+    return (float)nanoseconds / 1000000000.0f;
 }
+
+#if defined(__x86_64__)
+#define timespec struct timespec
+#endif
 
 #endif

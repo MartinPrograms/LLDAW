@@ -215,7 +215,7 @@ void InitAudio() {
         .amplitude = 1,
         .generate = GenerateWaveform,
         .panning = 0,
-        .unison = 512,
+        .unison = 8,
         .unison_detune = 0.2f,
         .phase_randomization = 1.0f, // 100% randomization
         .envelope = adsr_envelope_basic()
