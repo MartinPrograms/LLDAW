@@ -5,6 +5,7 @@
 #include "kiss_fft.h"
 #include <math.h>
 #include "../../audio/audio_state.h"
+#include "../../audio/generator.h"
 
 void WaveformDraw(const float* buffer, int bufferSize, Color color, float width, float height, float x, float y){
     int centerY = height / 2;
@@ -121,38 +122,27 @@ void SpectrumDraw(const float* buffer, int bufferSize, Color color, float width,
 void AdsrDraw(AdsrEnvelope envelope, Color color, float width, float height, float x, float y) {
     // Total time (in seconds) for the drawn envelope (attack, decay, release)
     float totalTime = envelope.attack + envelope.decay + envelope.release;
+    float activeTime = envelope.attack + envelope.decay;
+    int64_t active_samples = (int64_t)(activeTime * SAMPLE_RATE);
 
-    // Calculate x positions for each phase:
-    float attackX = x + (envelope.attack / totalTime) * width;
-    float decayX = x + ((envelope.attack + envelope.decay) / totalTime) * width;
-    float endX   = x + width;
+    float heights[(int)width]; // Height of the envelope at each x position
+    for (int i = 0; i < width; i++) {
+        // we need to get the sample number for this x position
+        int64_t sample = (int64_t)(i * totalTime / width * SAMPLE_RATE);
+        float value = adsr_envelope_apply(height, sample, 0, active_samples, envelope, active_samples < sample, SAMPLE_RATE, NULL);
+        heights[i] = value;
+    }
 
-    // Assuming a typical screen coordinate system where y increases downward:
-    // We want amplitude 1 at the top and amplitude 0 at the bottom.
-    float startY   = y + height;                  // Amplitude 0
-    float peakY    = y;                           // Amplitude 1 (attack peak)
-    // Sustain level: interpolate between peak and start based on sustain value.
-    float sustainY = y + height - envelope.sustain * height;
-
-    // Create control points for the ADSR envelope.
-    // 0: Start (0 amplitude)
-    // 1: End of attack (peak at amplitude 1)
-    // 2: End of decay (sustain level)
-    // 3: End of release (back to 0)
-    Vector2 points[4];
-    points[0] = (Vector2){ x,        startY   };
-    points[1] = (Vector2){ attackX,  peakY    };
-    points[2] = (Vector2){ decayX,   sustainY };
-    points[3] = (Vector2){ endX,     startY   };
-
-    // Draw lines connecting the control points.
     rlBegin(RL_LINES);
     rlSetLineWidth(2);
-    rlColor4ub(color.r, color.g, color.b, color.a);
-    for (int i = 0; i < 3; i++) {
-        rlVertex2f(points[i].x, points[i].y);
-        rlVertex2f(points[i+1].x, points[i+1].y);
+
+    for (int i = 0; i < width - 1; i++) {
+        rlColor4ub(color.r, color.g, color.b, color.a);
+        // Draw a line from the bottom of the envelope to the height at this x position
+        rlVertex2f(x + i, y + height);
+        rlVertex2f(x + i, y + height - heights[i]);
     }
+
     rlEnd();
 }
 
