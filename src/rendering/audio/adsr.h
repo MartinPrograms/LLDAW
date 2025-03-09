@@ -11,7 +11,6 @@ typedef struct {
 
 typedef struct {
     float* active;
-    float* inactive;
     int64_t activeLength;
     int64_t inactiveLength;
 } AdsrCache;

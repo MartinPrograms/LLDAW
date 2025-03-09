@@ -63,17 +63,24 @@ float adsr_from_cache(float value, int64_t current_sample, int64_t start_sample,
     float envelopeValue = 0.0f;
 
     if (ended) {
-        // Get the current envelope value from the cache
-        if (current_sample < end_sample) {
-            envelopeValue = envelope.cache.active[current_sample - start_sample];
-        } else {
-            envelopeValue = envelope.cache.inactive[current_sample - end_sample];
+        const int64_t activeLen = envelope.cache.activeLength;
+        const int64_t releaseInSamples = samples_from_time(envelope.release.value, SAMPLE_RATE);
+        const int64_t releaseTime = current_sample - end_sample;
+
+        float releaseStartValue = 0.0f;
+        // Check if we fall into activeLen
+        if (time < activeLen) {
+            releaseStartValue = envelope.cache.active[time];
+        }else {
+            releaseStartValue = envelope.sustain;
         }
 
-        // If the release phase is over, signal that the envelope is finished.
-        if (current_sample >= end_sample + envelope.cache.inactiveLength) {
+        if (releaseTime < releaseInSamples) {
+            envelopeValue = lerp_tension(releaseStartValue, 0.0f, (float)releaseTime / releaseInSamples, envelope.release.tension);
+        } else {
+            envelopeValue = 0.0f;
             if (remove) {
-                *remove = true;
+                *remove = true; // Signal that the envelope is finished.
             }
         }
     }else {
@@ -96,7 +103,6 @@ void adsr_cache_envelope(AdsrEnvelope *envelope, ARENA* arena, float sampleRate)
 
     envelope->cache = (AdsrCache) {
         .active = (float*)arena_alloc(arena, (attackInSamples + decayInSamples) * sizeof(float)),
-        .inactive = (float*)arena_alloc(arena, releaseInSamples * sizeof(float)),
         .activeLength = attackInSamples + decayInSamples,
         .inactiveLength = releaseInSamples
     };
@@ -109,17 +115,13 @@ void adsr_cache_envelope(AdsrEnvelope *envelope, ARENA* arena, float sampleRate)
         envelope->cache.active[i + attackInSamples] = lerp_tension(1.0f, envelope->sustain, (float)i / decayInSamples, envelope->decay.tension);
     }
 
-    for (int64_t i = 0; i < releaseInSamples; i++) {
-        envelope->cache.inactive[i] = lerp_tension(envelope->sustain, 0.0f, (float)i / releaseInSamples, envelope->release.tension);
-    }
-
     // That's it, the envelope is now cached.
 }
 
 AdsrEnvelope adsr_envelope_basic() {
     AdsrEnvelope envelope = {
         .attack = {
-            .value = 0.03f,
+            .value = 0.3f,
             .tension = 0.5f
         },
         .decay ={
@@ -128,7 +130,7 @@ AdsrEnvelope adsr_envelope_basic() {
         },
         .sustain = 1.f,
         .release ={
-            .value = 2.f,
+            .value = 0.5f,
             .tension = -0.5f
         },
     };
