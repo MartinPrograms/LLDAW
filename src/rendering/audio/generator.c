@@ -188,7 +188,7 @@ void generate_voice(bool rightChannel, bool advancePhase, Generator *generator, 
 
     float amplitude = voice->amplitude;
     bool remove = false;
-    amplitude = adsr_envelope_apply(amplitude, audio_state.sample_number, voice->startSample, voice->endSample, generator->envelope, !voice->active, SAMPLE_RATE, &remove);
+    amplitude = adsr_from_cache(amplitude, audio_state.sample_number, voice->startSample, voice->endSample, generator->envelope, !voice->active, &remove);
 
     if (remove) {
         voice->remove = true;

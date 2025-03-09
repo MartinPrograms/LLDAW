@@ -129,7 +129,7 @@ void AdsrDraw(AdsrEnvelope envelope, Color color, float width, float height, flo
     for (int i = 0; i < width; i++) {
         // we need to get the sample number for this x position
         int64_t sample = (int64_t)(i * totalTime / width * SAMPLE_RATE);
-        float value = adsr_envelope_apply(height, sample, 0, active_samples, envelope, active_samples < sample, SAMPLE_RATE, NULL);
+        float value = adsr_from_cache(height, sample, 0, active_samples, envelope, active_samples < sample, NULL);
         heights[i] = value;
     }
 
