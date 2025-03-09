@@ -38,6 +38,20 @@ else ()
     add_compile_options(-O3 -ffast-math)
 endif ()
 
+# Apple Silicon NEON
+if (APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+    add_compile_options(-march=armv8-a+simd)
+endif()
+
+# AVX2 detection (works on Windows/Linux/macOS)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+    if (MSVC)
+        add_compile_options(/arch:AVX2)
+    else()
+        add_compile_options(-mavx2 -mfma -mavx)
+    endif()
+endif()
+
 # Link the files in ./libs/tinycthread
 add_library(tinycthread STATIC ./libs/tinycthread/tinycthread.c)
 target_include_directories(tinycthread PUBLIC ./libs/tinycthread)

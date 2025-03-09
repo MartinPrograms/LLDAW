@@ -4,7 +4,7 @@
 #define UNISON_MAX_CENTS 100 // Maximum detune in cents
 
 #include <stdint.h>
-
+#include "adsr.h"
 #include "../../helpers/basic/arena.h"
 
 // This is a simple audio generator that generates a sine wave at a given frequency. Think of it as a very very *very* simple synthesizer. No ADSR, no filters, no effects, just a wave of your choice, with a frequency of your choice.
@@ -38,18 +38,6 @@ typedef struct {
     int maxVoices;
     bool monophonic;
 } VoiceStack;
-
-typedef struct {
-    float value;
-    float tension;
-} AdsrValue;
-
-typedef struct {
-    AdsrValue attack;
-    AdsrValue decay;
-    float sustain;
-    AdsrValue release;
-} AdsrEnvelope; // Attack, Decay, Sustain, Release
 
 typedef struct {
     /// Master frequency of the generator
@@ -98,8 +86,5 @@ void generator_voice_deactivate(int note, Generator* generator);
 void generator_voice_cleanse(Generator* generator);
 
 float GenerateWaveform(void* generator, bool rightChannel, bool advancePhase);
-
-AdsrEnvelope adsr_envelope_basic(); // A basic ADSR envelope
-float adsr_envelope_apply(float value, int64_t current_sample, int64_t start_sample, int64_t end_sample, const AdsrEnvelope envelope, bool ended, float sampleRate, bool* remove);
 
 #endif

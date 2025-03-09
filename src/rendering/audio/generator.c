@@ -160,19 +160,19 @@ void generate_waveform(Generator *generator, float phase, float amplitude, float
 
     switch (waveform) {
         case SINE:
-            out = quick_sine(phase) * amplitude;  // Use original phase value
+            out = quick_lookup(phase, WT_SINE) * amplitude;  // Use original phase value
             break;
         case SAWTOOTH:
-            out = (2.0f * phase / (2.0f * PI) - 1.0f) * amplitude;
+            out = quick_lookup(phase, WT_SAWTOOTH) * amplitude;
             break;
         case SQUARE:
-            out = (phase < PI) ? amplitude : -amplitude;
+            out = quick_lookup(phase, WT_SQUARE) * amplitude;
             break;
         case TRIANGLE:
-            out = (2.0f / PI) * asinf(sinf(phase)) * amplitude;
+            out = quick_lookup(phase, WT_TRIANGLE) * amplitude;
             break;
         case NOISE:
-            out = (float)GetRandomValue(-1000, 1000) / 1000.0f * amplitude;
+            out = quick_lookup(phase, WT_NOISE) * amplitude;
             break;
         default:
             break;
@@ -204,14 +204,14 @@ void generate_voice(bool rightChannel, bool advancePhase, Generator *generator, 
         const float max_cents = UNISON_MAX_CENTS * unisonDetune;
         float unisonSum = 0.0f;
         const float base_pan = voice->panning;
+
         // Loop through each unison voice.
         for (int i = 0; i < unisonCount; i++) {
             // Calculate a detune offset in cents. This spreads voices evenly from -max_cents to +max_cents.
             float detuneCents = 0.0f;
-            if (unisonCount > 1) {
-                // Map i from [0, unisonCount-1] to [-1, +1] then scale by max_cents.
-                detuneCents = max_cents * ((2.0f * i / (unisonCount - 1)) - 1.0f);
-            }
+            // Map i from [0, unisonCount-1] to [-1, +1] then scale by max_cents.
+            detuneCents = max_cents * ((2.0f * i / (unisonCount - 1)) - 1.0f);
+
             // Convert detune (in cents) to a frequency multiplier.
             float detuneFactor = powf(2.0f, detuneCents / 1200.0f);
             float detunedFrequency = voice->frequency * detuneFactor;
@@ -276,77 +276,3 @@ float GenerateWaveform(void* generator_void, bool  rightChannel, bool advancePha
 
     return value;
 }
-
-AdsrEnvelope adsr_envelope_basic() {
-    AdsrEnvelope envelope = {
-            .attack = {
-                .value = 0.5f,
-                .tension = 0.5f
-            },
-            .decay ={
-                .value = 0.5f,
-                .tension = 0.8f
-            },
-            .sustain = 1.f,
-            .release ={
-                .value = 1.f,
-                .tension = 0.6f
-            },
-    };
-
-    return envelope;
-}
-
-float adsr_envelope_apply(float value, int64_t current_sample, int64_t start_sample, int64_t end_sample, const AdsrEnvelope envelope, bool ended, float sampleRate, bool* remove) {
-    const int64_t attackInSamples  = samples_from_time(envelope.attack.value, sampleRate);
-    const int64_t decayInSamples   = samples_from_time(envelope.decay.value, sampleRate);
-    const int64_t releaseInSamples = samples_from_time(envelope.release.value, sampleRate);
-    const int64_t time = current_sample - start_sample;
-
-    float envelopeValue = 0.0f;
-
-    if (ended) {
-        // Calculate how long the note has been in release phase.
-        int64_t releaseTime = current_sample - end_sample;
-
-        // Determine the envelope level at the moment the note was released.
-        int64_t releasePhaseStartTime = end_sample - start_sample;
-        float releaseStartValue = 0.0f;
-        if (releasePhaseStartTime < attackInSamples) {
-            releaseStartValue = lerp_tension(0.0f, 1.0f, (float)releasePhaseStartTime / attackInSamples, envelope.attack.tension);
-        }
-        else if (releasePhaseStartTime < attackInSamples + decayInSamples) {
-            releaseStartValue = lerp_tension(1.0f, envelope.sustain, (float)(releasePhaseStartTime - attackInSamples) / decayInSamples, envelope.decay.tension);
-        }
-        else {
-            releaseStartValue = envelope.sustain;
-        }
-
-        // Now interpolate from the release start value to 0 over the release duration.
-        if (releaseTime < releaseInSamples) {
-            envelopeValue = lerp_tension(releaseStartValue, 0.0f, (float)releaseTime / releaseInSamples, envelope.release.tension);
-        } else {
-            envelopeValue = 0.0f;
-            if (remove) {
-                *remove = true; // Signal that the envelope is finished.
-            }
-        }
-    }
-    else {
-        // Attack phase
-        if (time < attackInSamples) {
-            envelopeValue = lerp_tension(0.0f, 1.0f, (float)time / attackInSamples, envelope.attack.tension);
-        }
-        // Decay phase
-        else if (time < attackInSamples + decayInSamples) {
-            envelopeValue = lerp_tension(1.0f, envelope.sustain, (float)(time - attackInSamples) / decayInSamples, envelope.decay.tension);
-        }
-        // Sustain phase
-        else {
-            envelopeValue = envelope.sustain;
-        }
-    }
-
-    return value * envelopeValue;
-}
-

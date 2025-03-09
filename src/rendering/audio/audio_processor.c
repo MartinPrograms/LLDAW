@@ -235,7 +235,7 @@ void InitAudio() {
     StopCallback = stop;
 
     // Just before launching the audio threads, create midi input
-    midi_processor_init(false);
+    midi_processor_init(true);
 
     // Create threads for playback and processing
     thrd_create(&audio_playback_thread, AudioPlaybackThread, &audio_state);
