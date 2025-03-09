@@ -25,11 +25,21 @@ GeneratorState generator_init(int capacity) {
 void generator_add(GeneratorState *state, Generator generator) {
     if (state->generatorCount < state->generatorCapacity) {
         int size = 16; // 16 voices per generator
-        generator.voices = (VoiceStack) {
+
+        generator.active_voices = (VoiceStack) {
                 .voices = (Voice *)arena_alloc(default_arena, size * sizeof(Voice)),
-                .deactivatedVoices = (Voice *)arena_alloc(default_arena, size * sizeof(Voice)),
-                .voiceCount = 0,
-                .deactivatedVoiceCount = 0,
+                .count = 0,
+                .head = 0,
+                .tail = 0,
+                .maxVoices = size,
+                .monophonic = false
+        };
+
+        generator.inactive_voices = (VoiceStack) {
+                .voices = (Voice *)arena_alloc(default_arena, size * sizeof(Voice)),
+                .count = 0,
+                .head = 0,
+                .tail = 0,
                 .maxVoices = size,
                 .monophonic = false
         };
@@ -51,77 +61,129 @@ void generator_free(GeneratorState *state) {
     arena_destroy(state->arena);
 }
 
-void generator_remove_oldest(Generator *generator) {
-    if (generator->voices.voiceCount > 0) {
+void generator_remove_oldest_active(Generator *generator) {
+    if (generator->active_voices.count > 0) {
         // Find the oldest voice
-        int oldestIndex = 0;
-        int64_t oldestSample = generator->voices.voices[0].startSample;
-        for (int i = 1; i < generator->voices.voiceCount; i++) {
-            if (generator->voices.voices[i].startSample < oldestSample) {
-                oldestSample = generator->voices.voices[i].startSample;
-                oldestIndex = i;
-            }
-        }
+        int index = generator->active_voices.head;
+        generator->active_voices.voices[index].remove = true; // Mark the voice as removed.
 
-        // Move it to the deactivated voices, and shift the rest left by one.
-        generator->voices.voices[oldestIndex].remove = true;
-        generator->voices.deactivatedVoices[generator->voices.deactivatedVoiceCount++] = generator->voices.voices[oldestIndex];
+        int inactive_index = generator->inactive_voices.tail;
+        generator->inactive_voices.voices[inactive_index] = generator->active_voices.voices[index];
 
-        for (int i = oldestIndex + 1; i < generator->voices.voiceCount; i++) {
-            generator->voices.voices[i - 1] = generator->voices.voices[i];
-        }
-        generator->voices.voiceCount--;
+        generator->inactive_voices.tail = (generator->inactive_voices.tail + 1) % generator->inactive_voices.maxVoices;
+        generator->inactive_voices.count++;
+
+        generator->active_voices.head = (generator->active_voices.head + 1) % generator->active_voices.maxVoices;
+        generator->active_voices.count--;
     }
+}
+
+void generator_remove_oldest_inactive(Generator *generator) {
+    if (generator->inactive_voices.count > 0) {
+        int index = generator->inactive_voices.head;
+        generator->inactive_voices.head = (generator->inactive_voices.head + 1) % generator->inactive_voices.maxVoices;
+        generator->inactive_voices.count--;
+        arena_destroy(generator->inactive_voices.voices[index].arena);
+   }
 }
 
 void generator_voice_remove(int note, Generator *generator) {
     // Simply mark the voice for removal, it will be removed in the next cleanse.
-    for (int i = 0; i < generator->voices.voiceCount; i++) {
-        if (generator->voices.voices[i].note == note) {
-            generator->voices.voices[i].remove = true;
+    int count = generator->active_voices.count;
+    int index = generator->active_voices.head;
+    for (int i = 0; i < count; i++) {
+        if (generator->active_voices.voices[index].note == note) {
+            generator->active_voices.voices[index].remove = true;
         }
+        index = (index + 1) % generator->active_voices.maxVoices;
     }
 }
 
 void generator_voice_deactivate(int note, Generator *generator) {
-    for (int i = 0; i < generator->voices.voiceCount; i++) {
-        if (generator->voices.voices[i].note == note) {
-            generator->voices.voices[i].active = false;
-            generator->voices.voices[i].endSample = audio_state.sample_number;
+    int count = generator->active_voices.count;
+    int max = generator->active_voices.maxVoices;
+    int head = generator->active_voices.head;
+    int newCount = 0;
 
-            // transfer the voice to the deactivated voices
-            generator->voices.deactivatedVoices[generator->voices.deactivatedVoiceCount++] = generator->voices.voices[i];
-            // Shift remaining voices left by one.
-            for (int j = i + 1; j < generator->voices.voiceCount; j++) {
-                generator->voices.voices[j - 1] = generator->voices.voices[j];
+    Voice temp[max];
+
+    for (int i = 0; i < count; i++) {
+        int idx = (head + i) % max;
+        if (generator->active_voices.voices[idx].note == note) {
+            generator->active_voices.voices[idx].active = false;
+            generator->active_voices.voices[idx].endSample = audio_state.sample_number;
+
+            if (generator->inactive_voices.count >= generator->inactive_voices.maxVoices) {
+                generator_remove_oldest_inactive(generator);
             }
 
-            generator->voices.voiceCount--;
+            int inactive_index = generator->inactive_voices.tail;
+            generator->inactive_voices.voices[inactive_index] = generator->active_voices.voices[idx];
+            generator->inactive_voices.tail = (generator->inactive_voices.tail + 1) % generator->inactive_voices.maxVoices;
+            generator->inactive_voices.count++;
+        }else {
+            temp[newCount] = generator->active_voices.voices[idx];
+            newCount++;
         }
     }
+
+    for (int i = 0; i < newCount; i++) {
+        generator->active_voices.voices[i] = temp[i];
+    }
+
+    generator->active_voices.count = newCount;
+    generator->active_voices.head = 0;
+    generator->active_voices.tail = newCount % max;
 }
 
 void generator_voice_cleanse(Generator *generator) {
-    // Remove all voices that have been marked for removal. In both active and deactivated voices.
-    for (int i = 0; i < generator->voices.voiceCount; i++) {
-        if (generator->voices.voices[i].remove) {
-            for (int j = i + 1; j < generator->voices.voiceCount; j++) {
-                generator->voices.voices[j - 1] = generator->voices.voices[j];
-            }
-            generator->voices.voiceCount--;
-            i--;
+    int activeCount = generator->active_voices.count;
+    int activeMax = generator->active_voices.maxVoices;
+
+    Voice tempActive[activeMax];
+    int newActiveCount = 0;
+
+    for (int i = 0; i < activeCount; i++) {
+        int idx = (generator->active_voices.head + i) % activeMax;
+        if (generator->active_voices.voices[idx].remove == true) {
+            arena_destroy(generator->active_voices.voices[idx].arena);
+        }
+        else {
+            tempActive[newActiveCount] = generator->active_voices.voices[idx];
+            newActiveCount++;
         }
     }
 
-    for (int i = 0; i < generator->voices.deactivatedVoiceCount; i++) {
-        if (generator->voices.deactivatedVoices[i].remove) {
-            for (int j = i + 1; j < generator->voices.deactivatedVoiceCount; j++) {
-                generator->voices.deactivatedVoices[j - 1] = generator->voices.deactivatedVoices[j];
-            }
-            generator->voices.deactivatedVoiceCount--;
-            i--;
+    for (int i = 0; i < newActiveCount; i++) {
+        generator->active_voices.voices[i] = tempActive[i];
+    }
+    generator->active_voices.count = newActiveCount;
+    generator->active_voices.head = 0;
+    generator->active_voices.tail = newActiveCount % activeMax;
+
+    int inactiveCount = generator->inactive_voices.count;
+    int inactiveMax = generator->inactive_voices.maxVoices;
+    Voice tempInactive[inactiveMax];
+    int newInactiveCount = 0;
+
+    for (int i = 0; i < inactiveCount; i++) {
+        int idx = (generator->inactive_voices.head + i) % inactiveMax;
+        if (generator->inactive_voices.voices[idx].remove == true) {
+            arena_destroy(generator->inactive_voices.voices[idx].arena);
+        }
+        else {
+            tempInactive[newInactiveCount] = generator->inactive_voices.voices[idx];
+            newInactiveCount++;
         }
     }
+
+    for (int i = 0; i < newInactiveCount; i++) {
+        generator->inactive_voices.voices[i] = tempInactive[i];
+    }
+
+    generator->inactive_voices.count = newInactiveCount;
+    generator->inactive_voices.head = 0;
+    generator->inactive_voices.tail = newInactiveCount % inactiveMax;
 }
 
 void generator_voice_process(int note, float frequency, float amplitude, bool deactivate, Generator *generator) {
@@ -131,16 +193,19 @@ void generator_voice_process(int note, float frequency, float amplitude, bool de
     }
 
     // Make sure we don't exceed our maximum voice count.
-    if (generator->voices.voiceCount >= generator->voices.maxVoices) {
-        generator_remove_oldest(generator);
+    if (generator->active_voices.count >= generator->active_voices.maxVoices) {
+        generator_remove_oldest_active(generator);
     }
 
     // Add the new voice.
-    generator->voices.voices[generator->voices.voiceCount++] = (Voice) {
+    int index = generator->active_voices.tail;
+    ARENA* new_arena = arena_create(sizeof(float) * generator->unison);
+    generator->active_voices.voices[index] = (Voice) {
         .frequency = frequency,
         .amplitude = amplitude,
         .panning = 0,  // TODO: Adjust panning as needed.
-        .phase = (float*)arena_alloc(default_arena, sizeof(float) * generator->unison),
+        .arena = new_arena,
+        .phase = (float*)arena_alloc(new_arena, sizeof(float) * generator->unison),
         .note = note,
         .active = true,
         .startSample = audio_state.sample_number,
@@ -149,8 +214,11 @@ void generator_voice_process(int note, float frequency, float amplitude, bool de
     // Randomize phase for each unison voice.
     for (int i = 0; i < generator->unison; i++) {
         float random = generator->phase_randomization; // % to differ from base, if its 1 we must add full randomization
-        generator->voices.voices[generator->voices.voiceCount - 1].phase[i] = random_value(0, 2.0f * PI) * random;
+        generator->active_voices.voices[index].phase[i] = random_value(0, 2.0f * PI) * random;
     }
+
+    generator->active_voices.count++;
+    generator->active_voices.tail = (generator->active_voices.tail + 1) % generator->active_voices.maxVoices;
 }
 
 
@@ -258,13 +326,15 @@ float GenerateWaveform(void* generator_void, bool  rightChannel, bool advancePha
     Generator* generator = (Generator*)generator_void;
     float value = 0;
 
-    // Capture parameters at start of calculation
-    for (int i = 0; i < generator->voices.voiceCount; i++) {
-        generate_voice(rightChannel, advancePhase, generator, i, generator->voices.voices, &value);
+    // Loop through all active & inactive voices
+    for (int i = 0; i < generator->active_voices.count; i++) {
+        int index = (generator->active_voices.head + i) % generator->active_voices.maxVoices;
+        generate_voice(rightChannel, advancePhase, generator, index, generator->active_voices.voices, &value);
     }
 
-    for (int i = 0; i < generator->voices.deactivatedVoiceCount; i++) {
-        generate_voice(rightChannel, advancePhase, generator, i, generator->voices.deactivatedVoices, &value);
+    for (int i = 0; i < generator->inactive_voices.count; i++) {
+        int index = (generator->inactive_voices.head + i) % generator->inactive_voices.maxVoices;
+        generate_voice(rightChannel, advancePhase, generator, index, generator->inactive_voices.voices, &value);
     }
 
     // Apply master amplitude

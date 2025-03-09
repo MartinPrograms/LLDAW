@@ -28,13 +28,14 @@ typedef struct {
     int64_t endSample;
     bool active; // The moment active is false, the release phase starts
     bool remove; // The moment remove is true, the voice is removed from the stack
+    ARENA* arena;
 } Voice;
 
 typedef struct {
     Voice* voices;
-    Voice* deactivatedVoices;
-    int voiceCount;
-    int deactivatedVoiceCount;
+    int head;
+    int tail;
+    int count;
     int maxVoices;
     bool monophonic;
 } VoiceStack;
@@ -62,7 +63,9 @@ typedef struct {
     float panning; // [-1, 1] -1 is left, 1 is right
 
     /// Voice stack (to be used for polyphony) (DO **NOT** ASSIGN TO THIS DIRECTLY)
-    VoiceStack voices;
+    VoiceStack active_voices;
+    /// Inactive voices (for release phase)
+    VoiceStack inactive_voices;
 
     /// Function to handle the generation of the waveform
     float (*generate)(void*, bool, bool); // Function pointer to the generate function
