@@ -57,7 +57,7 @@ if (MSVC)
     add_compile_options(/fsanitize=address)
     add_link_options(/fsanitize=address)
 elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
-    add_compile_options(-fsanitize=address -static-libasan)
+    add_compile_options(-fsanitize=address -static-libsan)
     add_link_options(-fsanitize=address)
 endif ()
 

@@ -1,6 +1,6 @@
-﻿#include <cpuid.h>
+﻿#if defined(__x86_64__)
+#include <cpuid.h>
 
-#if defined(__x86_64__)
 static inline bool has_avx2() {
     unsigned int eax, ebx, ecx, edx;
     eax = 0x7;

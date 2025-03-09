@@ -2,7 +2,7 @@
 #define AUDIO_MATH_H
 
 #include <math.h>
-#include <pthread_time.h>
+#include <tinycthread.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include "../basic/arena.h"
@@ -14,6 +14,7 @@
 #include "../math/avx2.h"
 #endif
 #include <stdio.h>
+#include <time.h>
 
 #include "../math/neon.h"
 
@@ -154,21 +155,19 @@ static inline float midi_note_to_frequency(int note) {
 
 // Will NOT be converted to AVX2, as it's not performance critical. And should only be used sparingly, and for sampling we have a rand function that uses a lookup table
 static inline float random_value(float min, float max) {
-    return min + (max - min) * ((float)rand() / RAND_MAX);
+    return min + (max - min) * ((float)rand() / (float)RAND_MAX);
 }
 
-#undef timespec
-
-static inline struct timespec get_time_now() { // sure i guess this isnt audio but whatever
+/// Returns the current time in nanoseconds
+static inline int64_t get_time_now() { // sure i guess this isnt audio but whatever
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts;
+    return ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
-static inline double time_in_seconds(struct timespec ts) { // genuinely dont care atp
-    return ts.tv_sec + ts.tv_nsec / 1.0e9;
+static inline float nanoseconds_to_milliseconds(int64_t nanoseconds) {
+    // Convert first to microseconds, then to milliseconds
+    return (float)nanoseconds / 1000000.0f;
 }
-
-#define timespec _tthread_timespec
 
 #endif

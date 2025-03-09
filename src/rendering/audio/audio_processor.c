@@ -1,3 +1,4 @@
+#include <string.h>
 #include "audio_processor.h"
 
 #include "midi_processor.h"
@@ -8,11 +9,12 @@ void CalculateBuffer(float *buffer, int bufferSize) {
     for (int i = 0; i < bufferSize; i++) {
         float sumL = 0;
         float sumR = 0;
-
-        PmEvent event[4];
+        MidiMessage *messages = NULL;
         int readout = 0;
-        MidiMessage* messages = midi_processor_process(event, 4, &readout, buffer_arena);
-
+        if (midi_state.enabled) {
+            PmEvent event[4];
+            messages = midi_processor_process(event, 4, &readout, buffer_arena);
+        }
         for (int j = 0; j < audio_state.generator_state.generatorCount; j++) {
             Generator *generator = &audio_state.generator_state.generators[j];
 
@@ -151,18 +153,14 @@ int AudioProcessingThread(void *arg) {
             cnd_signal(&state->resume_playback_cnd);
         }
 
-        // I'm using auto because struct timespec is a type that has been overwritten by a macro, and this is an easy way to avoid it.
-        auto start = get_time_now();
+        int64_t start = get_time_now(); // In seconds
 
         arena_reset(buffer_arena); // Clear the buffer arena (remove old midi messages)
         CalculateBuffer(state->audio_buffers.buffers[state->audio_buffers.buffer_index].buffer, BUFFER_SIZE);
 
-        auto end = get_time_now();
+        int64_t end = get_time_now(); // In seconds
 
-        double now = time_in_seconds(end);
-        double elapsed = time_in_seconds(start);
-
-        state->time_to_render_buffer = now - elapsed;
+        state->time_to_render_buffer = nanoseconds_to_milliseconds(end - start);
         state->audio_buffers.buffer_index++;
         mtx_unlock(&state->processing_mutex);
     }
@@ -217,7 +215,7 @@ void InitAudio() {
         .amplitude = 1,
         .generate = GenerateWaveform,
         .panning = 0,
-        .unison = 16,
+        .unison = 512,
         .unison_detune = 0.2f,
         .phase_randomization = 1.0f, // 100% randomization
         .envelope = adsr_envelope_basic()
