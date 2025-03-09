@@ -264,7 +264,6 @@ void generator_edit(int i, Generator generator) {
          },
          .backgroundColor = COLOR_SCHEME_BACKGROUND_TERTIARY,
          }) {
-        // Generator name, frequency, amplitude, waveform, with buttons to change them
         CLAY({
              .id = CLAY_ID_LOCAL("GeneratorName"),
              .layout = {
@@ -274,6 +273,7 @@ void generator_edit(int i, Generator generator) {
              .childAlignment = {CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_TOP}
              }
              }){
+
             STRING generatorName = StringCreate("Generator ", frame_arena);
             char *generatorIndex = arena_alloc(frame_arena, 10);
             snprintf(generatorIndex, 10, "%d", i);
@@ -285,12 +285,6 @@ void generator_edit(int i, Generator generator) {
             CLAY_TEXT(GetString(generatorType.data), CLAY_TEXT_CONFIG(
                           {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
 
-            STRING frequency = StringCreate("Pitch ", frame_arena);
-            char *frequencyString = arena_alloc(frame_arena, 10);
-            // 0.00 format
-            snprintf(frequencyString, 10, "%.2f", generator.frequency);
-            frequency = StringConcat(&frequency, frequencyString);
-            frequency = StringConcat(&frequency, "hz");
 
             STRING panning = StringCreate("Pan [-1, 1]: ", frame_arena);
             char *panningString = arena_alloc(frame_arena, 10);
@@ -306,8 +300,6 @@ void generator_edit(int i, Generator generator) {
 
             // merge frequency, panning, amplitude into one string
             STRING generatorStats = StringCreate("", frame_arena);
-            generatorStats = StringConcat(&generatorStats, frequency.data);
-            generatorStats = StringConcat(&generatorStats, " / ");
             generatorStats = StringConcat(&generatorStats, panning.data);
             generatorStats = StringConcat(&generatorStats, " / ");
             generatorStats = StringConcat(&generatorStats, amplitude.data);
@@ -342,7 +334,7 @@ void BottomBar(){
     CLAY({
              .id = CLAY_ID("BottomBar"),
              .layout = {
-                .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_PERCENT(0.15)},
+                .sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_PERCENT(0.20)},
                 .padding = CLAY_PADDING_ALL(STANDARD_PADDING),
                 .childGap = STANDARD_GAP,
                 .layoutDirection = CLAY_LEFT_TO_RIGHT,
