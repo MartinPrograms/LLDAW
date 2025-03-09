@@ -32,7 +32,7 @@ typedef enum {
     WT_NOISE
 } WaveformType;
 
-extern float wave_tables[NUM_WAVEFORMS][WAVE_TABLE_SIZE];
+extern float wave_tables[NUM_WAVEFORMS][WAVE_TABLE_SIZE]; // low quality, yes, but very fast
 
 void init_math();
 

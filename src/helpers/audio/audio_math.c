@@ -57,6 +57,6 @@ float quick_lookup(float phase, WaveformType waveform){
 }
 
 float quick_calculate(__unused float phase, __unused WaveformType waveform) {
-    // tba
+    // TODO: Implement this
     return 0;
 }
