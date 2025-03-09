@@ -2,6 +2,19 @@
 #define AUDIO_MATH_H
 
 #include <math.h>
+#include <pthread_time.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include "../basic/arena.h"
+
+#ifndef PI
+#define PI 3.14159265358979323846f
+#endif
+
+#define SINE_TABLE_SIZE 4096
+extern float sine_table[SINE_TABLE_SIZE];
+
+void init_math();
 
 static inline float lerp(float a, float b, float t) {
     return a + t * (b - a);
@@ -9,9 +22,11 @@ static inline float lerp(float a, float b, float t) {
 
 /// A lerp, with tension parameter to control the curve
 static inline float lerp_tension(float a, float b, float t, float tension) {
-    return lerp(a, b, powf(t, tension));
+    return lerp(a, b, t * (1.0f - tension) + t * t * t * tension);
 }
 
+/// Quick sine (using a precomputed table)
+float quick_sine(float phase);
 
 static inline float map(float value, float start1, float stop1, float start2, float stop2) {
     return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));

@@ -13,6 +13,7 @@
 #include "./basic/arena.h" // This however, is used. As the Init function creates an arena
 #include "../rendering/audio/audio_state.h" // The audio state is included to make it available in other files
 #include "./basic/formatters.h"
+#include "./audio/audio_math.h"
 
 extern ARENA* default_arena;
 extern ARENA* frame_arena;

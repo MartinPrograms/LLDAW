@@ -213,11 +213,11 @@ void InitAudio() {
     generator_add(&audio_state.generator_state, (Generator) {
         .frequency = 220,
         .phase = 0,
-        .waveform = SAWTOOTH,
+        .waveform = SINE,
         .amplitude = 1,
         .generate = GenerateWaveform,
         .panning = 0,
-        .unison = 8,
+        .unison = 1,
         .unison_detune = 0.1f,
         .phase_randomization = 1.0f, // 100% randomization
         .envelope = adsr_envelope_basic()
@@ -235,7 +235,7 @@ void InitAudio() {
     StopCallback = stop;
 
     // Just before launching the audio threads, create midi input
-    midi_processor_init(true);
+    midi_processor_init(false);
 
     // Create threads for playback and processing
     thrd_create(&audio_playback_thread, AudioPlaybackThread, &audio_state);

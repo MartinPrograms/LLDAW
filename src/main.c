@@ -10,11 +10,14 @@
 #include <string.h>
 
 #include "helpers/include.h" // the standard include file with a lot of basic functions
+#include "helpers/audio/audio_math.h"
 #include "rendering/graphical/ui/ui_renderer.h"
 #include "rendering/graphical/ui/base_ui.h"
 #include "rendering/audio/audio_processor.h"
 
 int main(void) {
+    init_math(); // This does some stuff for precomputed tables and such
+
     Init(1024 * 1024 * 4); // Initialize the Helper Library with a 4MB arena
     InitWindow(1920, 1080, "LLDAW");
     SetTargetFPS(240);

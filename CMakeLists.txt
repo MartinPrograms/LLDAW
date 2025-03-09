@@ -31,11 +31,11 @@ if (MINGW)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
 endif ()
 
-# Add the most efficient optimization flags (because this is audio processing)
+# Add the most efficient optimization flags, and the -ffast-math flag
 if (MSVC)
-    add_compile_options(/O2)
+    add_compile_options(/O2 /fp:fast)
 else ()
-    add_compile_options(-O3)
+    add_compile_options(-O3 -ffast-math)
 endif ()
 
 # Link the files in ./libs/tinycthread

@@ -105,7 +105,6 @@ void generator_voice_cleanse(Generator *generator) {
     // Remove all voices that have been marked for removal. In both active and deactivated voices.
     for (int i = 0; i < generator->voices.voiceCount; i++) {
         if (generator->voices.voices[i].remove) {
-            printf("Cleaning up voice for note %d\n", generator->voices.voices[i].note);
             for (int j = i + 1; j < generator->voices.voiceCount; j++) {
                 generator->voices.voices[j - 1] = generator->voices.voices[j];
             }
@@ -116,7 +115,6 @@ void generator_voice_cleanse(Generator *generator) {
 
     for (int i = 0; i < generator->voices.deactivatedVoiceCount; i++) {
         if (generator->voices.deactivatedVoices[i].remove) {
-            printf("Cleaning up deactivated voice for note %d\n", generator->voices.deactivatedVoices[i].note);
             for (int j = i + 1; j < generator->voices.deactivatedVoiceCount; j++) {
                 generator->voices.deactivatedVoices[j - 1] = generator->voices.deactivatedVoices[j];
             }
@@ -128,8 +126,6 @@ void generator_voice_cleanse(Generator *generator) {
 
 void generator_voice_process(int note, float frequency, float amplitude, bool deactivate, Generator *generator) {
     if (deactivate) {
-        // On note off, remove any voice with the matching note and do nothing else.
-        printf("Deactivating voice for note %d\n", note);
         generator_voice_deactivate(note, generator);
         return;
     }
@@ -160,27 +156,29 @@ void generator_voice_process(int note, float frequency, float amplitude, bool de
 
 void generate_waveform(Generator *generator, float phase, float amplitude, float *output) {
     const Waveform waveform = generator->waveform;
-    *output = 0.0f;
+    float out = 0.0;
 
     switch (waveform) {
         case SINE:
-            *output = sinf(phase) * amplitude;  // Use original phase value
+            out = quick_sine(phase) * amplitude;  // Use original phase value
             break;
         case SAWTOOTH:
-            *output = (2.0f * phase / (2.0f * PI) - 1.0f) * amplitude;
+            out = (2.0f * phase / (2.0f * PI) - 1.0f) * amplitude;
             break;
         case SQUARE:
-            *output = (phase < PI) ? amplitude : -amplitude;
+            out = (phase < PI) ? amplitude : -amplitude;
             break;
         case TRIANGLE:
-            *output = (2.0f / PI) * asinf(sinf(phase)) * amplitude;
+            out = (2.0f / PI) * asinf(sinf(phase)) * amplitude;
             break;
         case NOISE:
-            *output = (float)GetRandomValue(-1000, 1000) / 1000.0f * amplitude;
+            out = (float)GetRandomValue(-1000, 1000) / 1000.0f * amplitude;
             break;
         default:
             break;
     }
+
+    *output += out;
 }
 
 void generate_voice(bool rightChannel, bool advancePhase, Generator *generator, int index, Voice* voices, float *value) {
