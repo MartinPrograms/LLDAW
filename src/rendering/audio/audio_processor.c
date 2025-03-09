@@ -56,7 +56,7 @@ void create_buffers(AudioState *state, ARENA* arena) {
     state->audio_buffers.main_buffer.buffer = (float*)arena_alloc(arena,BUFFER_SIZE * 2 * sizeof(float)); // times 2 because we have 2 channels
     state->audio_buffers.main_buffer.buffer_size = BUFFER_SIZE * 2;
 
-    state->audio_buffers.buffers = (AudioBuffer*)malloc(AUDIO_BUFFER_COUNT * sizeof(AudioBuffer));
+    state->audio_buffers.buffers = (AudioBuffer*)arena_alloc(arena,AUDIO_BUFFER_COUNT * sizeof(AudioBuffer));
     for (int i = 0; i < AUDIO_BUFFER_COUNT; i++) {
         state->audio_buffers.buffers[i].buffer = (float*)arena_alloc(arena,BUFFER_SIZE * 2 * sizeof(float)); // times 2 because we have 2 channels
         state->audio_buffers.buffers[i].buffer_size = BUFFER_SIZE * 2;

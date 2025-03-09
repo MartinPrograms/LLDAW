@@ -52,6 +52,15 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
     endif()
 endif()
 
+# Add memory leak detection flags
+if (MSVC)
+    add_compile_options(/fsanitize=address)
+    add_link_options(/fsanitize=address)
+elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-fsanitize=address -static-libasan)
+    add_link_options(-fsanitize=address)
+endif ()
+
 # Link the files in ./libs/tinycthread
 add_library(tinycthread STATIC ./libs/tinycthread/tinycthread.c)
 target_include_directories(tinycthread PUBLIC ./libs/tinycthread)
