@@ -63,15 +63,9 @@ int main(void) {
 
     adsr_cache_envelope(&audio_state.generator_state.generators[1].envelope, default_arena, SAMPLE_RATE);
 
-    // 1/4th
-    int64_t oneeighth = SAMPLE_RATE / 8;
-    __unused int64_t onefourth = SAMPLE_RATE / 4;
-    __unused int64_t onefourfour = SAMPLE_RATE / 2;
-    __unused int64_t onefourthree = 3 * SAMPLE_RATE / 4;
-    int64_t onefour = SAMPLE_RATE; // Bar
-
     // basic C major scale
     int rootC = 60;
+    float bpm = 80;
 
     sequencer_add_note((Note) {
             .generator_index = 0,
@@ -79,21 +73,32 @@ int main(void) {
             .amplitude = 0.5f,
             .pan = 0.0f,
             .start_sample = 0,
-            .end_sample = onefour * 8,
+            .end_sample = samples_from_bpm_time_component(bpm, SAMPLE_RATE, WHOLE) * 8,
             .active = true,
             .midi_note = rootC - 24 + 2
     });
 
+    sequencer_add_note((Note) {
+            .generator_index = 0,
+            .frequency = midi_note_to_frequency(rootC - 24 + 5),
+            .amplitude = 0.5f,
+            .pan = 0.0f,
+            .start_sample = samples_from_bpm_time_component(bpm, SAMPLE_RATE, WHOLE) * 8,
+            .end_sample = samples_from_bpm_time_component(bpm, SAMPLE_RATE, WHOLE) * 16,
+            .active = true,
+            .midi_note = rootC - 24 + 5
+    });
+
     int dnotesminor[] = {NOTE_D, NOTE_A, NOTE_F, NOTE_G};
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < 64; i++) {
         // arpeggio in D scale
         sequencer_add_note((Note) {
                 .generator_index = 1,
                 .frequency = midi_note_to_frequency(note_to_midi(dnotesminor[i % 4], 5)),
                 .amplitude = 0.5f,
                 .pan = 0.0f,
-                .start_sample = i * oneeighth,
-                .end_sample = (i + 1) * oneeighth,
+                .start_sample = samples_from_bpm_time_component(bpm, SAMPLE_RATE, QUARTER) * i,
+                .end_sample = samples_from_bpm_time_component(bpm, SAMPLE_RATE, QUARTER) * (i + 1),
                 .active = true,
                 .midi_note = note_to_midi(dnotesminor[i % 4], 5)
         });

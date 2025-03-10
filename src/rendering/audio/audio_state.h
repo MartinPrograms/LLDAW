@@ -7,13 +7,6 @@
 #include <tinycthread.h>
 #include "generator.h"
 
-#define SAMPLE_RATE 44100
-#define BUFFER_SIZE 1024
-#define BIG_FIFO_BUFFER_SIZE SAMPLE_RATE / 2
-#define SMALL_FIFO_BUFFER_SIZE 1024
-#define AUDIO_THREAD_PRIORITY 0 // 0 is considered default priority, if clicking occurs try setting to 1 which raises it to critical
-#define AUDIO_BUFFER_COUNT 3
-
 typedef struct {
     float* buffer;
     int buffer_size;

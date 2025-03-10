@@ -6,6 +6,7 @@
 #include <math.h>
 #include "../../audio/audio_state.h"
 #include "../../audio/generator.h"
+#include "../../../helpers/audio/audio_definitions.h"
 
 void WaveformDraw(const float* buffer, int bufferSize, Color color, float width, float height, float x, float y){
     int centerY = height / 2;
