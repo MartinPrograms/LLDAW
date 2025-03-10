@@ -185,7 +185,7 @@ void TopBar() {
             .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
              }) {
             CLAY_TEXT(GetString(title.data), CLAY_TEXT_CONFIG(
-                    {.textColor = COLOR_SCHEME_TEXT, .fontSize = 32, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
+                    {.textColor = COLOR_SCHEME_TEXT, .fontSize = 32, .fontId = 1, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
         }
 
         CLAY({

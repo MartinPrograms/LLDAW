@@ -54,7 +54,7 @@ static inline Clay_Dimensions Raylib_MeasureText(Clay_StringSlice text, Clay_Tex
         fontToUse = GetFontDefault();
     }
 
-    float scaleFactor = config->fontSize/(float)fontToUse.baseSize;
+    float scaleFactor = (float)config->fontSize/(float)fontToUse.baseSize;
 
     for (int i = 0; i < text.length; ++i)
     {
@@ -186,16 +186,14 @@ void InitUI(float sizeX, float sizeY) {
     Clay_Initialize(arena, (Clay_Dimensions){sizeX, sizeY}, (Clay_ErrorHandler){HandleClayErrors, .userData = NULL});
 
     // if macos load normal roboto, else load the RobotoMono-Regular.ttf (windows has an issue with the normal one)
-#ifdef __APPLE__
-    Font font = LoadFontEx("resources/Roboto-Regular.ttf", STANDARD_FONT_SIZE * 2, nullptr, 250); // standard font size is 16, but we want to double it, so we have a bit more quality
-#else
-    Font font = LoadFontEx("resources/RobotoMono-Regular.ttf", STANDARD_FONT_SIZE * 2, nullptr, 250); // standard font size is 16, but we want to double it, so we have a bit more quality
-#endif
+    Font small = LoadFontEx("resources/Roboto-Regular.ttf", STANDARD_FONT_SIZE, nullptr, 250); // standard font size is 16, but we want to double it, so we have a bit more quality
+    Font large = LoadFontEx("resources/Roboto-Regular.ttf", LARGE_FONT_SIZE, nullptr, 250); // standard font size is 16, but we want to double it, so we have a bit more quality
 
-    Clay_SetMeasureTextFunction(Raylib_MeasureText, &font);
+    Clay_SetMeasureTextFunction(Raylib_MeasureText, &small);
 
-    fonts = malloc(sizeof(Font) * 1);
-    fonts[0] = font;
+    fonts = malloc(sizeof(Font) * 2);
+    fonts[0] = small;
+    fonts[1] = large;
 }
 
 void SetUIRenderFunction(void (*renderFunction)(void)) {

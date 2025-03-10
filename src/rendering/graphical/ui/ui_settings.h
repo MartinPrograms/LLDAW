@@ -16,6 +16,7 @@
 #define STANDARD_PADDING 8
 #define STANDARD_GAP 4
 #define STANDARD_FONT_SIZE 16
+#define LARGE_FONT_SIZE 32
 #define STANDARD_CORNER_RADIUS 4
 
 // This header also includes some basic conversion functions for clay to raylib
