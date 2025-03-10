@@ -4,17 +4,31 @@ SequencerState sequencer = {0};
 
 void sequencer_init(){
     sequencer.arena = arena_create(MAX_NOTES * sizeof(Note));
-    sequencer.bpm = 130.0f;
-    sequencer.length = 60 * SAMPLE_RATE; // 60 seconds
+    sequencer.settings = (SequencerSettings) {
+        .bpm = 130,
+        .length = 16,
+        .tracker = false
+    };
     sequencer.notes = (NoteStack) {
         .notes = (Note*)arena_alloc(sequencer.arena, MAX_NOTES * sizeof(Note)),
         .count = 0,
         .maxNotes = MAX_NOTES
     };
+
+    // Check if sequencer.notes.notes is NULL, if so we failed to allocate memory
+    if (!sequencer.notes.notes) {
+        printf("Failed to allocate memory for sequencer notes\n");
+        exit(1);
+    }
 }
 
 void sequencer_add_note(Note note){
-    sequencer.notes.notes[sequencer.notes.count].idx = sequencer.notes.count;
+    if (sequencer.notes.count >= sequencer.notes.maxNotes) {
+        printf("Max notes reached\n");
+        return;
+    }
+
+    sequencer.notes.notes[sequencer.notes.count].midi_note = sequencer.notes.count;
     sequencer.notes.notes[sequencer.notes.count++] = note;
 }
 

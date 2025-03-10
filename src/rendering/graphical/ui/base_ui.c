@@ -25,12 +25,14 @@ void LeftPanel(){
              .cornerRadius = CLAY_CORNER_RADIUS(STANDARD_CORNER_RADIUS)
          }) {
         CLAY({
-                 .id = CLAY_ID("LeftPanelText"), .layout = {.sizing = {CLAY_SIZING_GROW(),
-                                                                       CLAY_SIZING_GROW()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING)},
+                 .id = CLAY_ID("LeftPanelTitle"), .layout = {.sizing = {CLAY_SIZING_GROW(),
+                                                                       CLAY_SIZING_FIT()}, .padding = CLAY_PADDING_ALL(STANDARD_PADDING),.childAlignment = {CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_TOP}},
              }) {
-            CLAY_TEXT(GetString("Left Panel"), CLAY_TEXT_CONFIG(
+            CLAY_TEXT(GetString("Settings"), CLAY_TEXT_CONFIG(
                     {.textColor = COLOR_SCHEME_TEXT, .fontSize = 16, .letterSpacing = 0, .wrapMode = CLAY_TEXT_WRAP_NONE}));
         }
+
+        draw_sequencer_settings();
     }
 }
 
@@ -125,7 +127,7 @@ STRING GetTopbarStats() {
     stats = StringConcat(&stats, "\n");
     stats = StringConcat(&stats, "Buffer index: ");
     char *bufferIndexString = arena_alloc(frame_arena, 10);
-    snprintf(bufferIndexString, 10, "%d", audio_state.audio_buffers.buffer_index);
+    snprintf(bufferIndexString, 10, "%d", audio_state.audio_buffers.buffer_count);
     stats = StringConcat(&stats, bufferIndexString);
 
     // Append the buffer render time as (time: x)
@@ -135,11 +137,11 @@ STRING GetTopbarStats() {
     stats = StringConcat(&stats, timeString);
     stats = StringConcat(&stats, "ms)");
 
-    if (audio_state.audio_buffers.buffer_index >= AUDIO_BUFFER_COUNT) {
+    if (audio_state.audio_buffers.buffer_count >= AUDIO_BUFFER_COUNT) {
         // This means it's full and waiting, append (waiting)
         stats = StringConcat(&stats, " (waiting)");
     }else
-    if (audio_state.audio_buffers.buffer_index <= 0) {
+    if (audio_state.audio_buffers.buffer_count <= 0) {
         // This is an underrun, append (underrun)
         stats = StringConcat(&stats, " (underrun)");
     }else {

@@ -4,6 +4,7 @@
 #include <clay.h>
 #include "../../../helpers/include.h"
 #include "ui_settings.h"
+#include "./sequencing/sequencer_gui.h"
 
 void RenderMainUI();
 

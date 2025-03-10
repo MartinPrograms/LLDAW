@@ -37,7 +37,7 @@ int main(void) {
         .amplitude = 1,
         .generate = GenerateWaveform,
         .panning = -0.f,
-        .unison = 8,
+        .unison = 4,
         .unison_detune = 0.2f,
         .phase_randomization = 1.0f, // 100% randomization
         .envelope = adsr_envelope_basic()
@@ -81,7 +81,7 @@ int main(void) {
             .start_sample = 0,
             .end_sample = onefour * 8,
             .active = true,
-            .idx = 0
+            .midi_note = rootC - 24 + 2
     });
 
     int dnotesminor[] = {NOTE_D, NOTE_A, NOTE_F, NOTE_G};
@@ -95,7 +95,7 @@ int main(void) {
                 .start_sample = i * oneeighth,
                 .end_sample = (i + 1) * oneeighth,
                 .active = true,
-                .idx = i + 1
+                .midi_note = note_to_midi(dnotesminor[i % 4], 5)
         });
     }
 

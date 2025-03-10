@@ -28,10 +28,10 @@ void CalculateBuffer(float *buffer, int bufferSize) {
                 Note note = notes[k];
                 if (note.generator_index == j) {
                     if (note.end_sample == audio_state.sample_number) {
-                        generator_voice_process(note.idx, note.frequency, note.amplitude, note.pan, true, generator);
+                        generator_voice_process(note.midi_note, note.frequency, note.amplitude, note.pan, true, generator);
                     }
                     else if (note.start_sample == audio_state.sample_number) {
-                        generator_voice_process(note.idx, note.frequency, note.amplitude, note.pan, false, generator);
+                        generator_voice_process(note.midi_note, note.frequency, note.amplitude, note.pan, false, generator);
                     }
                 }
 
@@ -105,21 +105,17 @@ void create_buffers(AudioState *state, ARENA* arena) {
 }
 
 void update_audio_stream(AudioState *state) {
-    mtx_lock(&state->processing_mutex);
+    if (state->audio_buffers.buffer_count == 0){
+        printf("[WARNING] BUFFER UNDER-RUN 0\n");
+        return;
+    }
+
+    int index = state->audio_buffers.buffer_head;
     // Copy the buffer and adjust indices under mutex protection
-    memcpy(state->audio_buffers.main_buffer.buffer, state->audio_buffers.buffers[0].buffer, state->audio_buffers.buffers[0].buffer_size * sizeof(float));
+    memcpy(state->audio_buffers.main_buffer.buffer, state->audio_buffers.buffers[index].buffer, state->audio_buffers.buffers[index].buffer_size * sizeof(float));
 
-    for (int i = 0; i < AUDIO_BUFFER_COUNT - 1; i++) {
-        memcpy(state->audio_buffers.buffers[i].buffer, state->audio_buffers.buffers[i + 1].buffer, state->audio_buffers.buffers[i].buffer_size * sizeof(float));
-    }
-
-    state->audio_buffers.buffer_index--;
-    if (state->audio_buffers.buffer_index < 0) {
-        state->audio_buffers.buffer_index = 0;
-        printf("Buffer underrun!!!\n");
-    }
-
-    mtx_unlock(&state->processing_mutex);
+    state->audio_buffers.buffer_head = (index + 1) % AUDIO_BUFFER_COUNT;
+    state->audio_buffers.buffer_count--;
 
     UpdateAudioStream(stream, state->audio_buffers.main_buffer.buffer, BUFFER_SIZE);
 
@@ -152,7 +148,7 @@ void reset_audiobuffers(void) {
         memset(audio_state.audio_buffers.buffers[i].buffer, 0,
                BUFFER_SIZE * 2 * sizeof(float));
     }
-    audio_state.audio_buffers.buffer_index = 0;
+    audio_state.audio_buffers.buffer_count = 0;
     mtx_unlock(&audio_state.processing_mutex);
 }
 
@@ -162,15 +158,15 @@ int AudioProcessingThread(void *arg) {
         mtx_lock(&state->processing_mutex);
         while (state->paused && state->running) {
             cnd_wait(&state->resume_processing_cnd, &state->processing_mutex);
-            audio_state.audio_buffers.buffer_index = 0;
+            audio_state.audio_buffers.buffer_count = 0;
         }
 
-        if (state->audio_buffers.buffer_index >= AUDIO_BUFFER_COUNT) {
+        if (state->audio_buffers.buffer_count >= AUDIO_BUFFER_COUNT) {
             mtx_unlock(&state->processing_mutex);
             continue;
         }
 
-        if (state->started && state->audio_buffers.buffer_index == AUDIO_BUFFER_COUNT - 1) {
+        if (state->started && state->audio_buffers.buffer_count == AUDIO_BUFFER_COUNT - 1) {
             state->started = false;
             cnd_signal(&state->resume_playback_cnd);
         }
@@ -183,7 +179,9 @@ int AudioProcessingThread(void *arg) {
 
             memset(state->audio_buffers.main_buffer.buffer, 0, BUFFER_SIZE * sizeof(float));
 
-            state->audio_buffers.buffer_index = 0;
+            state->audio_buffers.buffer_count = 0;
+            state->audio_buffers.buffer_head = 0;
+            state->audio_buffers.buffer_tail = 0;
             state->reset = false;
 
             // Go through all the notes and KILL THEM ALL
@@ -195,12 +193,14 @@ int AudioProcessingThread(void *arg) {
         int64_t start = get_time_now(); // In seconds
 
         arena_reset(buffer_arena); // Clear the buffer arena (remove old midi messages)
-        CalculateBuffer(state->audio_buffers.buffers[state->audio_buffers.buffer_index].buffer, BUFFER_SIZE);
+        CalculateBuffer(state->audio_buffers.buffers[state->audio_buffers.buffer_tail].buffer, BUFFER_SIZE);
 
         int64_t end = get_time_now(); // In seconds
 
         state->time_to_render_buffer = nanoseconds_to_milliseconds(end - start);
-        state->audio_buffers.buffer_index++;
+        state->audio_buffers.buffer_tail = (state->audio_buffers.buffer_tail + 1) % AUDIO_BUFFER_COUNT;
+        state->audio_buffers.buffer_count++;
+
         mtx_unlock(&state->processing_mutex);
     }
     return 0;

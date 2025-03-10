@@ -14,7 +14,7 @@ typedef struct {
     int64_t start_sample;
     int64_t end_sample;
     bool active;
-    int idx;
+    int midi_note;
 } Note;
 
 typedef struct {
@@ -24,9 +24,14 @@ typedef struct {
 } NoteStack;
 
 typedef struct {
-    NoteStack notes;
+    bool tracker; // If the sequencer is in tracker mode, if so it'll display the UI differently.
     float bpm;
     int64_t length;
+} SequencerSettings;
+
+typedef struct {
+    NoteStack notes;
+    SequencerSettings settings;
     ARENA* arena;
 } SequencerState;
 

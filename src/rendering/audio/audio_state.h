@@ -34,7 +34,8 @@ typedef struct {
     /// List of buffers to be rendered, before sent to the main buffer. Usually 2, or 3. Stereo audio.
     AudioBuffer* buffers;
     int buffer_count;
-    int buffer_index;
+    int buffer_tail;
+    int buffer_head;
 
     /// Stereo audio buffer, this one goes to the visualizer, this is FIFO.
     FifoAudioBuffer fifo_buffer;
