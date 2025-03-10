@@ -30,6 +30,7 @@ int main(void) {
     ////////////////////////////////////////////////////////////////////////////////////////
     // Create the song:
     sequencer_init();
+    sequencer.settings.bpm = 80;
     generator_add(&audio_state.generator_state, (Generator) {
         .frequency = 220,
         .phase = 0,
@@ -37,7 +38,7 @@ int main(void) {
         .amplitude = 1,
         .generate = GenerateWaveform,
         .panning = -0.f,
-        .unison = 4,
+        .unison = 8,
         .unison_detune = 0.2f,
         .phase_randomization = 1.0f, // 100% randomization
         .envelope = adsr_envelope_basic()
@@ -46,62 +47,59 @@ int main(void) {
     generator_add(&audio_state.generator_state, (Generator) {
         .frequency = 220,
         .phase = 0,
-        .waveform = TRIANGLE,
+        .waveform = SINE,
         .amplitude = 1,
         .generate = GenerateWaveform,
         .panning = -0.f,
-        .unison = 1,
-        .unison_detune = 0.2f,
+        .unison = 3,
+        .unison_detune = 0.1f,
         .phase_randomization = 1.0f, // 100% randomization
         .envelope = (AdsrEnvelope){
-            .attack = {0.01f, 0.5f},
-            .decay = {0.2f, 0.8f},
-            .sustain = 0.0f,
-            .release = {0.01f, 0.5f},
+            .attack = {1.f, 0.5f},
+            .decay = {0.8f, 0.3f},
+            .sustain = 0.5f,
+            .release = {.9f, 0.3f},
         }
     });
 
     adsr_cache_envelope(&audio_state.generator_state.generators[1].envelope, default_arena, SAMPLE_RATE);
 
     // basic C major scale
-    int rootC = 60;
-    float bpm = 80;
+    //int rootC = 60;
 
-    sequencer_add_note((Note) {
-            .generator_index = 0,
-            .frequency = midi_note_to_frequency(rootC - 24 + 2),
-            .amplitude = 0.5f,
-            .pan = 0.0f,
-            .start_sample = 0,
-            .end_sample = samples_from_bpm_time_component(bpm, SAMPLE_RATE, WHOLE) * 8,
-            .active = true,
-            .midi_note = rootC - 24 + 2
-    });
+    int chord1[] = {NOTE_C, NOTE_E, NOTE_G};
+    int chord2[] = {NOTE_D, NOTE_F, NOTE_A};
+    int chord3[] = {NOTE_E, NOTE_G, NOTE_B};
+    int chord4[] = {NOTE_F, NOTE_A, NOTE_C};
 
-    sequencer_add_note((Note) {
-            .generator_index = 0,
-            .frequency = midi_note_to_frequency(rootC - 24 + 5),
-            .amplitude = 0.5f,
-            .pan = 0.0f,
-            .start_sample = samples_from_bpm_time_component(bpm, SAMPLE_RATE, WHOLE) * 8,
-            .end_sample = samples_from_bpm_time_component(bpm, SAMPLE_RATE, WHOLE) * 16,
-            .active = true,
-            .midi_note = rootC - 24 + 5
-    });
+    // Now we add the pad chords, with 4 beats each
+    for(int chord = 0; chord < 4; chord++){
+        int* selectedchord;
 
-    int dnotesminor[] = {NOTE_D, NOTE_A, NOTE_F, NOTE_G};
-    for (int i = 0; i < 64; i++) {
-        // arpeggio in D scale
-        sequencer_add_note((Note) {
+        if (chord % 4 == 0){
+            selectedchord = chord1;
+        } else if (chord % 4 == 1){
+            selectedchord = chord2;
+        } else if (chord % 4 == 2){
+            selectedchord = chord3;
+        } else {
+            selectedchord = chord4;
+        }
+
+        for (int note = 0; note < 3; note++){
+            sequencer_add_note((Note){
                 .generator_index = 1,
-                .frequency = midi_note_to_frequency(note_to_midi(dnotesminor[i % 4], 5)),
+                .frequency = midi_note_to_frequency(note_to_midi(selectedchord[note], 5)),
                 .amplitude = 0.5f,
-                .pan = 0.0f,
-                .start_sample = samples_from_bpm_time_component(bpm, SAMPLE_RATE, QUARTER) * i,
-                .end_sample = samples_from_bpm_time_component(bpm, SAMPLE_RATE, QUARTER) * (i + 1),
+                .pan = 0,
+                .start_beat = chord * 4,
+                .end_beat = chord * 4 + 4,
                 .active = true,
-                .midi_note = note_to_midi(dnotesminor[i % 4], 5)
-        });
+                .midi_note = note_to_midi(selectedchord[note], 5),
+                .first_sample = 0,
+                .last_sample = 0,
+            });
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////

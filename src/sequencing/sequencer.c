@@ -35,10 +35,15 @@ void sequencer_add_note(Note note){
 Note * sequencer_get_notes_at(int64_t sample, int *count, ARENA* arena) {
     int ncount = 0;
     int notes[sequencer.notes.count];
+
     for (int i = 0; i < sequencer.notes.count; i++) {
-        if (sequencer.notes.notes[i].start_sample <= sample && sequencer.notes.notes[i].end_sample >= sample) {
-            notes[ncount] = i;
-            ncount++;
+        Note n = sequencer.notes.notes[i];
+        float startSample = samples_from_bpm_time(sequencer.settings.bpm, SAMPLE_RATE, n.start_beat);
+        float endSample = samples_from_bpm_time(sequencer.settings.bpm, SAMPLE_RATE, n.end_beat);
+        sequencer.notes.notes[i].first_sample = startSample;
+        sequencer.notes.notes[i].last_sample = endSample -1; // -1 to make sure we don't include the last sample
+        if (sample >= startSample && sample < endSample) {
+            notes[ncount++] = i;
         }
     }
 

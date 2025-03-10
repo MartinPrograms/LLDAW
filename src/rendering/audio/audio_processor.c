@@ -27,10 +27,10 @@ void CalculateBuffer(float *buffer, int bufferSize) {
             for (int k = 0; k < noteCount; k++) {
                 Note note = notes[k];
                 if (note.generator_index == j) {
-                    if (note.end_sample == audio_state.sample_number) {
+                    if (note.last_sample == audio_state.sample_number) {
                         generator_voice_process(note.midi_note, note.frequency, note.amplitude, note.pan, true, generator);
                     }
-                    else if (note.start_sample == audio_state.sample_number) {
+                    else if (note.first_sample == audio_state.sample_number) {
                         generator_voice_process(note.midi_note, note.frequency, note.amplitude, note.pan, false, generator);
                     }
                 }

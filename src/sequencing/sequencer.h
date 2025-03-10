@@ -11,10 +11,12 @@ typedef struct {
   	float frequency;
     float amplitude;
     float pan;
-    int64_t start_sample;
-    int64_t end_sample;
+    float start_beat;
+    float end_beat;
     bool active;
     int midi_note;
+    int64_t first_sample;
+    int64_t last_sample;
 } Note;
 
 typedef struct {
