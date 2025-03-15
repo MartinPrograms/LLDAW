@@ -1,0 +1,9 @@
+﻿/cmake-build-debug/
+/cmake-build-debug-linux/
+/libs/raylib/
+/libs/tinycthread/
+/libs/clay/
+/cmake-build-debug-system/
+/libs/kiss_fft/
+/libs/portmidi/
+/cmake-build-debug-mingw/
